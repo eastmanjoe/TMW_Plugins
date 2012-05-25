@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 # SharpDevelop 4.2.0.8774-RC
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sMBSim", "sMBSim.csproj", "{CDBD4D05-36A9-4BAA-8AB6-34A94C4C86D6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModbusSlave", "ModbusSlave.csproj", "{CDBD4D05-36A9-4BAA-8AB6-34A94C4C86D6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

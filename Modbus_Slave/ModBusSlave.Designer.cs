@@ -190,6 +190,7 @@ namespace ModbusSimulatorSlave
       this.open_mb_session.Text = "Open Modbus Session";
       this.open_mb_session.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
       this.open_mb_session.UseVisualStyleBackColor = false;
+      this.open_mb_session.CheckedChanged += new System.EventHandler(this.SessionManagement);
       // 
       // label5
       // 

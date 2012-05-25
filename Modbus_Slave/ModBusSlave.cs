@@ -21,36 +21,21 @@ namespace ModbusSimulatorSlave
     {
       InitializeComponent();
       
-      Connect();
+      this.cfg_num_tcp_ports.Value = 1;
+      this.cfg_mb_per_port.Value = 1;
+      this.cfg_start_mb_addr.Value = 1;
+      this.cfg_tcp_port_start.Value = 502;
       
-      BuildDatabase();
-    }
-
-    public String IP
-    {
-      get { return m_ip; }
-      set { m_ip = value; }
-    }
-
-    public UInt16 Port
-    {
-      get { return m_port; }
-      set { m_port = value; }
-    }
-  
-    public String SessionId
-    {
-      get { return m_sessionId; }
-      set { m_sessionId = value; }
+      //Connect();
+      
+      //InitializeModbusMap();
     }
     
-    void StartSlaveClick(object sender, EventArgs e)
-    {
-      
-      this.data_refresh_timer.Enabled = true;
-      this.data_refresh_timer.Start();
-    }
+
     
+/// <summary>
+/// Closes the channel and session
+/// </summary>
     private void Disconnect()
     {
       if (this.SessionId == null)
@@ -67,7 +52,86 @@ namespace ModbusSimulatorSlave
       this.SessionId = null;
     }
     
-    private void Connect()
+    
+    
+    
+/// <summary>
+/// Open Channel
+/// </summary>
+/// <param name="port"></param>
+/// <param name="total_ports"></param>
+    private string OpenChannel(ushort port)
+    {
+        // if we are already connected disconnect
+        if (this.Channel != null)
+          Disconnect();
+        
+        try
+        {
+          Channel = new MBChannel(TMW_CHANNEL_OR_SESSION_TYPE.SLAVE);
+          Channel.Type = WINIO_TYPE.TCP;
+          Channel.WinTCPipPort = Convert.ToUInt16(port);
+          Channel.WinTCPipAddress = IP;
+          Channel.WinTCPmode = TCP_MODE.SERVER;
+          Channel.Name = "sMBSim_" + port;
+          Channel.Protocol = TMW_PROTOCOL.MB;
+          Channel.OpenChannel();
+          
+          return Channel.Name;
+        } 
+        catch (Exception ex)
+        {
+          MessageBox.Show("Error Opening: " + ex.Message);
+          Channel = null;
+          Close();
+          
+          return null;
+        }
+    }
+    
+    
+
+    private void OpenSession(string channel, ushort mb_addr)
+    {
+      // See if we are supposed to connect to an existing session
+      if (this.SessionId != null)
+      {
+        this.MbSlaveSession = (SMBSession)TMWSession.LookupSession(Convert.ToUInt32(this.SessionId));
+        if (this.MbSlaveSession != null)
+        {
+          this.Channel = (MBChannel)this.MbSlaveSession.Channel;
+          this.Channel.SessionCloseEvent += new TMWChannel.SessionCloseEventDelegate(SessionCloseEvent);
+        }
+        else
+        {
+          throw new Exception("Unable to load Modbus Slave Simulator. Unable to find session.");
+        }
+      }
+      else
+      {
+        try
+        {
+          MbSlaveSession = new SMBSession(Channel);
+          MbSlaveSession.SlaveAddress = mb_addr;
+          MbSlaveSession.Name = "sMBSim_" + mb_addr;
+          MbSlaveSession.OpenSession();
+        } 
+        catch (Exception ex)
+        {
+          MessageBox.Show("Error Opening: " + ex.Message);
+          Channel = null;
+          MbSlaveSession = null;
+          Close();
+          
+          return;
+        }
+      }
+    }
+    
+/// <summary>
+/// Opens the channel and session
+/// </summary>
+    private void Connect(ushort mb_addr, ushort port)
     {
       // if we are already connected disconnect
       if (this.Channel != null)
@@ -93,16 +157,16 @@ namespace ModbusSimulatorSlave
         {
           Channel = new MBChannel(TMW_CHANNEL_OR_SESSION_TYPE.SLAVE);
           Channel.Type = WINIO_TYPE.TCP;
-          Channel.WinTCPipPort = Port;
+          Channel.WinTCPipPort = Convert.ToUInt16(port);
           Channel.WinTCPipAddress = IP;
           Channel.WinTCPmode = TCP_MODE.SERVER;
-          Channel.Name = "sMBSim_" + Port;
+          Channel.Name = "sMBSim_" + port;
           Channel.Protocol = TMW_PROTOCOL.MB;
           Channel.OpenChannel();
           
           MbSlaveSession = new SMBSession(Channel);
-          MbSlaveSession.SlaveAddress = 1;
-          MbSlaveSession.Name = "sMBSim_" + MbSlaveSession.SlaveAddress;
+          MbSlaveSession.SlaveAddress = (ushort)mb_addr;
+          MbSlaveSession.Name = "sMBSim_" + mb_addr;
           MbSlaveSession.OpenSession();
         } 
         catch (Exception ex)
@@ -118,22 +182,53 @@ namespace ModbusSimulatorSlave
       }
     }
     
-    private void BuildDatabase()
+    
+/// <summary>
+/// Determine to either open or close the session and channels
+/// </summary>
+/// <param name="sender"></param>
+/// <param name="e"></param>
+    private void SessionManagement(object sender, EventArgs e)
     {
-      SimulatorDatabase = MbSlaveSession.SimDatabase as SMBSimDatabase;
+      string channel_name;
+      ushort tcp_port = Convert.ToUInt16(cfg_tcp_port_start.Value);
+      int num_tcp_ports = Convert.ToInt32(cfg_num_tcp_ports.Value);
+      ushort mb_addr_start = Convert.ToUInt16(cfg_start_mb_addr.Value);
       
-      SimulatorDatabase.Clear();
-      
-      SMBSimHReg hold_reg_point;
-      
-      for (ushort i = 0; i < 2000; i++)
+      //Determine the direction of the state change
+      if (this.open_mb_session.Checked)
       {
-        hold_reg_point = SimulatorDatabase.addHreg(i, 0);
+        for (int i = 0; i < num_tcp_ports; i++)
+        {
+          channel_name = OpenChannel(tcp_port);
+          
+          for (int c = 0; c < cfg_mb_per_port.Value; c++)
+          {
+            OpenSession(channel_name, mb_addr_start);
+            mb_addr_start += 1;
+          }
+          
+          //Connect();
+          InitializeModbusMap();
+          
+          tcp_port += 1;
+        }
+        
       }
-      
+      else
+      {
+        Disconnect();
+      }
     }
     
-    void DataFileImport(object sender, EventArgs e)
+    
+    
+/// <summary>
+/// Gets the CSV filename to be imported into the database
+/// </summary>
+/// <param name="sender"></param>
+/// <param name="e"></param>
+    private void DataFileImport(object sender, EventArgs e)
     {
       //open fiale dialog box to selct .csv file
       OpenFileDialog fdlg = new OpenFileDialog();
@@ -153,6 +248,12 @@ namespace ModbusSimulatorSlave
       }
     }
     
+    
+    
+/// <summary>
+/// Imports the file passed in
+/// </summary>
+/// <param name="path"></param>
     private void Import(string path)
     {
       if (data_file_name.Text.Trim() != string.Empty)
@@ -172,7 +273,13 @@ namespace ModbusSimulatorSlave
       }
     }
     
-    public DataTable ParseCSV(string path)
+    
+/// <summary>
+/// Parses the CSV file at the location passed in
+/// </summary>
+/// <param name="path"></param>
+/// <returns></returns>
+    private DataTable ParseCSV(string path)
     {
       
       if (!File.Exists(path))
@@ -216,14 +323,36 @@ namespace ModbusSimulatorSlave
       return dtable;
     }
     
-    private DataTable PopulateMBMap(int row_number)
-    //private int PopulateMBMap(int row_number)
+    
+/// <summary>
+/// Sets up the Modbus Map, includes all types of registers
+/// </summary>
+    private void InitializeModbusMap()
+    {
+      SimulatorDatabase = MbSlaveSession.SimDatabase as SMBSimDatabase;
+      
+      SimulatorDatabase.Clear();
+      
+      SMBSimHReg hold_reg_point;
+      
+      for (ushort i = 0; i < 2000; i++)
+      {
+        hold_reg_point = SimulatorDatabase.addHreg(i, 0);
+      }
+    }
+    
+    
+    
+    
+/// <summary>
+/// Uses the data from the imported CSV file to fill the Modbus Map registers
+/// </summary>
+/// <param name="row_number"></param>
+/// <returns></returns>
+    private DataTable PopulateModbusMap(int row_number)
     {
       if (row_number == Convert.ToInt32(CsvDataTable.Rows.Count.ToString()))
         return null;
-      
-      
-      //SMBSimHReg hreg_pt;
       
       //determine the size of the data set
       int row_count = Convert.ToInt32(CsvDataTable.Rows.Count.ToString());
@@ -320,25 +449,36 @@ namespace ModbusSimulatorSlave
       
       return mb_data;
     }
-        
+
+    
+    
+    
+    
     private void FillModbusMapWithData(object sender, System.EventArgs e)
     {
-      DataTable MbDataTable = new DataTable();
-      
-      text_current_row.Text = Convert.ToString(Convert.ToInt32(text_current_row.Text) + 1);
-      current_csv_row += 1;
-      
-      if (current_csv_row == Convert.ToInt32(CsvDataTable.Rows.Count.ToString()))
+      if (this.open_mb_session.Checked) 
       {
-        text_current_row.Text = "1";
-        current_csv_row = 2;
-      }
+        DataTable MbDataTable = new DataTable();
+      
+        text_current_row.Text = Convert.ToString(Convert.ToInt32(text_current_row.Text) + 1);
+        current_csv_row += 1;
         
-      MbDataTable = PopulateMBMap(current_csv_row);
+        if (current_csv_row == Convert.ToInt32(CsvDataTable.Rows.Count.ToString()))
+        {
+          text_current_row.Text = "1";
+          current_csv_row = 2;
+        }
+          
+        MbDataTable = PopulateModbusMap(current_csv_row);
+        
+        
+        dataGrid_mb_registers.DataSource = MbDataTable.DefaultView;
+      }
       
-      
-      dataGrid_mb_registers.DataSource = MbDataTable.DefaultView;
     }
+    
+    
+    
     
     private ushort[] ModbusRegConverterFloat(float input)
     {
@@ -353,6 +493,9 @@ namespace ModbusSimulatorSlave
       return _mb_reg;
     }
     
+    
+    
+    
     private ushort[] ModbusRegConverterInt32(Int32 input)
     {
       byte[] _mb_reg_bytes = new byte[4];
@@ -366,6 +509,10 @@ namespace ModbusSimulatorSlave
       return _mb_reg;
     }
     
+    
+    
+    
+    
     private ushort[] ModbusRegConverterUInt32(UInt32 input)
     {
       byte[] _mb_reg_bytes = new byte[4];
@@ -378,6 +525,10 @@ namespace ModbusSimulatorSlave
       
       return _mb_reg;
     }
+    
+    
+    
+    
     
     private void SimulatorFormClosing(object sender, FormClosingEventArgs e)
     {
@@ -396,14 +547,32 @@ namespace ModbusSimulatorSlave
       return 0;
     }
     
+    public String IP
+    {
+      get { return m_ip; }
+      set { m_ip = value; }
+    }
+
+    public UInt16 Port
+    {
+      get { return m_port; }
+      set { m_port = value; }
+    }
+  
+    public String SessionId
+    {
+      get { return m_sessionId; }
+      set { m_sessionId = value; }
+    }
+    
     private String m_sessionId = null;
     private String m_ip = "*.*.*.*";
     private UInt16 m_port = 502;
-   
+    
     private MBChannel Channel;
     private SMBSession MbSlaveSession;
     private SMBSimDatabase SimulatorDatabase;
-    
+   
     private int current_csv_row;
     private DataTable CsvDataTable;
     private Boolean isFormClosing = false; 
