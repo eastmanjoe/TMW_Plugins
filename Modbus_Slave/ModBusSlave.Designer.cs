@@ -46,12 +46,10 @@ namespace ModbusSimulatorSlave
       this.text_total_mb_devices = new System.Windows.Forms.TextBox();
       this.cfg_mb_per_port = new System.Windows.Forms.NumericUpDown();
       this.cfg_start_mb_addr = new System.Windows.Forms.NumericUpDown();
-      this.cfg_num_tcp_ports = new System.Windows.Forms.NumericUpDown();
       this.label4 = new System.Windows.Forms.Label();
-      this.label3 = new System.Windows.Forms.Label();
       this.label2 = new System.Windows.Forms.Label();
       this.label1 = new System.Windows.Forms.Label();
-      this.cfg_tcp_port_start = new System.Windows.Forms.NumericUpDown();
+      this.cfg_tcp_port = new System.Windows.Forms.NumericUpDown();
       this.gb_mb_data = new System.Windows.Forms.GroupBox();
       this.checkBox3 = new System.Windows.Forms.CheckBox();
       this.text_current_row = new System.Windows.Forms.TextBox();
@@ -64,8 +62,7 @@ namespace ModbusSimulatorSlave
       this.gb_mb_session.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_mb_per_port)).BeginInit();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_start_mb_addr)).BeginInit();
-      ((System.ComponentModel.ISupportInitialize)(this.cfg_num_tcp_ports)).BeginInit();
-      ((System.ComponentModel.ISupportInitialize)(this.cfg_tcp_port_start)).BeginInit();
+      ((System.ComponentModel.ISupportInitialize)(this.cfg_tcp_port)).BeginInit();
       this.gb_mb_data.SuspendLayout();
       this.SuspendLayout();
       // 
@@ -163,12 +160,10 @@ namespace ModbusSimulatorSlave
       this.gb_mb_session.Controls.Add(this.text_total_mb_devices);
       this.gb_mb_session.Controls.Add(this.cfg_mb_per_port);
       this.gb_mb_session.Controls.Add(this.cfg_start_mb_addr);
-      this.gb_mb_session.Controls.Add(this.cfg_num_tcp_ports);
       this.gb_mb_session.Controls.Add(this.label4);
-      this.gb_mb_session.Controls.Add(this.label3);
       this.gb_mb_session.Controls.Add(this.label2);
       this.gb_mb_session.Controls.Add(this.label1);
-      this.gb_mb_session.Controls.Add(this.cfg_tcp_port_start);
+      this.gb_mb_session.Controls.Add(this.cfg_tcp_port);
       this.gb_mb_session.Location = new System.Drawing.Point(8, 64);
       this.gb_mb_session.Name = "gb_mb_session";
       this.gb_mb_session.Size = new System.Drawing.Size(744, 168);
@@ -212,7 +207,7 @@ namespace ModbusSimulatorSlave
       // 
       // cfg_mb_per_port
       // 
-      this.cfg_mb_per_port.Location = new System.Drawing.Point(392, 96);
+      this.cfg_mb_per_port.Location = new System.Drawing.Point(392, 72);
       this.cfg_mb_per_port.Name = "cfg_mb_per_port";
       this.cfg_mb_per_port.Size = new System.Drawing.Size(56, 20);
       this.cfg_mb_per_port.TabIndex = 32;
@@ -220,37 +215,20 @@ namespace ModbusSimulatorSlave
       // 
       // cfg_start_mb_addr
       // 
-      this.cfg_start_mb_addr.Location = new System.Drawing.Point(392, 72);
+      this.cfg_start_mb_addr.Location = new System.Drawing.Point(392, 48);
       this.cfg_start_mb_addr.Name = "cfg_start_mb_addr";
       this.cfg_start_mb_addr.Size = new System.Drawing.Size(56, 20);
       this.cfg_start_mb_addr.TabIndex = 31;
       this.cfg_start_mb_addr.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
       // 
-      // cfg_num_tcp_ports
-      // 
-      this.cfg_num_tcp_ports.Location = new System.Drawing.Point(392, 48);
-      this.cfg_num_tcp_ports.Name = "cfg_num_tcp_ports";
-      this.cfg_num_tcp_ports.Size = new System.Drawing.Size(56, 20);
-      this.cfg_num_tcp_ports.TabIndex = 30;
-      this.cfg_num_tcp_ports.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-      // 
       // label4
       // 
-      this.label4.Location = new System.Drawing.Point(168, 72);
+      this.label4.Location = new System.Drawing.Point(168, 48);
       this.label4.Name = "label4";
       this.label4.Size = new System.Drawing.Size(216, 23);
       this.label4.TabIndex = 29;
       this.label4.Text = "Starting ModBus Address";
       this.label4.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
-      // label3
-      // 
-      this.label3.Location = new System.Drawing.Point(168, 48);
-      this.label3.Name = "label3";
-      this.label3.Size = new System.Drawing.Size(216, 23);
-      this.label3.TabIndex = 28;
-      this.label3.Text = "Number of TCP Ports";
-      this.label3.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
       // label2
       // 
@@ -263,7 +241,7 @@ namespace ModbusSimulatorSlave
       // 
       // label1
       // 
-      this.label1.Location = new System.Drawing.Point(168, 96);
+      this.label1.Location = new System.Drawing.Point(168, 72);
       this.label1.Name = "label1";
       this.label1.Size = new System.Drawing.Size(216, 23);
       this.label1.TabIndex = 26;
@@ -272,16 +250,16 @@ namespace ModbusSimulatorSlave
       // 
       // cfg_tcp_port_start
       // 
-      this.cfg_tcp_port_start.Location = new System.Drawing.Point(392, 24);
-      this.cfg_tcp_port_start.Maximum = new decimal(new int[] {
+      this.cfg_tcp_port.Location = new System.Drawing.Point(392, 24);
+      this.cfg_tcp_port.Maximum = new decimal(new int[] {
                   10000,
                   0,
                   0,
                   0});
-      this.cfg_tcp_port_start.Name = "cfg_tcp_port_start";
-      this.cfg_tcp_port_start.Size = new System.Drawing.Size(56, 20);
-      this.cfg_tcp_port_start.TabIndex = 21;
-      this.cfg_tcp_port_start.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+      this.cfg_tcp_port.Name = "cfg_tcp_port_start";
+      this.cfg_tcp_port.Size = new System.Drawing.Size(56, 20);
+      this.cfg_tcp_port.TabIndex = 21;
+      this.cfg_tcp_port.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
       // 
       // gb_mb_data
       // 
@@ -360,20 +338,17 @@ namespace ModbusSimulatorSlave
       this.gb_mb_session.PerformLayout();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_mb_per_port)).EndInit();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_start_mb_addr)).EndInit();
-      ((System.ComponentModel.ISupportInitialize)(this.cfg_num_tcp_ports)).EndInit();
-      ((System.ComponentModel.ISupportInitialize)(this.cfg_tcp_port_start)).EndInit();
+      ((System.ComponentModel.ISupportInitialize)(this.cfg_tcp_port)).EndInit();
       this.gb_mb_data.ResumeLayout(false);
       this.gb_mb_data.PerformLayout();
       this.ResumeLayout(false);
     }
     private System.Windows.Forms.CheckBox checkBox3;
     private System.Windows.Forms.GroupBox gb_mb_data;
-    private System.Windows.Forms.NumericUpDown cfg_tcp_port_start;
+    private System.Windows.Forms.NumericUpDown cfg_tcp_port;
     private System.Windows.Forms.Label label1;
     private System.Windows.Forms.Label label2;
-    private System.Windows.Forms.Label label3;
     private System.Windows.Forms.Label label4;
-    private System.Windows.Forms.NumericUpDown cfg_num_tcp_ports;
     private System.Windows.Forms.NumericUpDown cfg_start_mb_addr;
     private System.Windows.Forms.NumericUpDown cfg_mb_per_port;
     private System.Windows.Forms.TextBox text_total_mb_devices;

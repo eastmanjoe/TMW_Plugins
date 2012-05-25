@@ -21,10 +21,9 @@ namespace ModbusSimulatorSlave
     {
       InitializeComponent();
       
-      this.cfg_num_tcp_ports.Value = 1;
       this.cfg_mb_per_port.Value = 1;
       this.cfg_start_mb_addr.Value = 1;
-      this.cfg_tcp_port_start.Value = 502;
+      this.cfg_tcp_port.Value = 502;
     }
     
 
@@ -32,22 +31,27 @@ namespace ModbusSimulatorSlave
 /// <summary>
 /// Closes the channel and session
 /// </summary>
-    private void Disconnect()
+    private void CloseSession()
     {
-      if (this.SessionId == null)
-      {
         if (this.MbSlaveSession != null)
           this.MbSlaveSession.CloseSession();
-
-        if (this.Channel != null)
-          this.Channel.CloseChannel();
-      }
-
-      this.Channel = null;
-      this.MbSlaveSession = null;
-      this.SessionId = null;
+  
+        this.MbSlaveSession = null;
     }
     
+    
+    
+/// <summary>
+/// Closes the channel
+/// </summary>
+    private void CloseChannel()
+    {
+      
+      if (this.Channel != null)
+        this.Channel.CloseChannel();
+
+      this.Channel = null;
+    }
     
     
     
@@ -60,8 +64,14 @@ namespace ModbusSimulatorSlave
     {
         // if we are already connected disconnect
         if (this.Channel != null)
-          Disconnect();
-        
+        {
+          if (this.Channel.Name == "sMBSim_" + port)
+          {
+            CloseSession();
+            CloseChannel();
+          }          
+        }
+          
         try
         {
           Channel = new MBChannel(TMW_CHANNEL_OR_SESSION_TYPE.SLAVE);
@@ -124,59 +134,7 @@ namespace ModbusSimulatorSlave
       }
     }
     
-/// <summary>
-/// Opens the channel and session
-/// </summary>
-    private void Connect(ushort mb_addr, ushort port)
-    {
-      // if we are already connected disconnect
-      if (this.Channel != null)
-        Disconnect();
-      
-      // See if we are supposed to connect to an existing session
-      if (this.SessionId != null)
-      {
-        this.MbSlaveSession = (SMBSession)TMWSession.LookupSession(Convert.ToUInt32(this.SessionId));
-        if (this.MbSlaveSession != null)
-        {
-          this.Channel = (MBChannel)this.MbSlaveSession.Channel;
-          this.Channel.SessionCloseEvent += new TMWChannel.SessionCloseEventDelegate(SessionCloseEvent);
-        }
-        else
-        {
-          throw new Exception("Unable to load Modbus Slave Simulator. Unable to find session.");
-        }
-      }
-      else
-      {
-        try
-        {
-          Channel = new MBChannel(TMW_CHANNEL_OR_SESSION_TYPE.SLAVE);
-          Channel.Type = WINIO_TYPE.TCP;
-          Channel.WinTCPipPort = Convert.ToUInt16(port);
-          Channel.WinTCPipAddress = IP;
-          Channel.WinTCPmode = TCP_MODE.SERVER;
-          Channel.Name = "sMBSim_" + port;
-          Channel.Protocol = TMW_PROTOCOL.MB;
-          Channel.OpenChannel();
-          
-          MbSlaveSession = new SMBSession(Channel);
-          MbSlaveSession.SlaveAddress = (ushort)mb_addr;
-          MbSlaveSession.Name = "sMBSim_" + mb_addr;
-          MbSlaveSession.OpenSession();
-        } 
-        catch (Exception ex)
-        {
-          MessageBox.Show("Error Opening: " + ex.Message);
-          Channel = null;
-          MbSlaveSession = null;
-          //Database = null;
-          Close();
-          
-          return;
-        }
-      }
-    }
+
     
     
 /// <summary>
@@ -187,32 +145,25 @@ namespace ModbusSimulatorSlave
     private void SessionManagement(object sender, EventArgs e)
     {
       string channel_name;
-      ushort tcp_port = Convert.ToUInt16(cfg_tcp_port_start.Value);
-      int num_tcp_ports = Convert.ToInt32(cfg_num_tcp_ports.Value);
+      ushort tcp_port = Convert.ToUInt16(cfg_tcp_port.Value);
       ushort mb_addr_start = Convert.ToUInt16(cfg_start_mb_addr.Value);
       
       //Determine the direction of the state change
       if (this.open_mb_session.Checked)
       {
-        for (int i = 0; i < num_tcp_ports; i++)
-        {
           channel_name = OpenChannel(tcp_port);
           
           for (int c = 0; c < cfg_mb_per_port.Value; c++)
           {
             OpenSession(channel_name, mb_addr_start);
+            InitializeModbusMap();
             mb_addr_start += 1;
           }
-          
-          InitializeModbusMap();
-          
-          tcp_port += 1;
-        }
-        
       }
       else
       {
-        Disconnect();
+          CloseSession();
+          CloseChannel();
       }
     }
     
@@ -463,10 +414,12 @@ namespace ModbusSimulatorSlave
           text_current_row.Text = "1";
           current_csv_row = 2;
         }
-          
-        MbDataTable = PopulateModbusMap(current_csv_row);
         
-        
+        for (uint i = 0; i < cfg_mb_per_port.Value; i++)
+        {
+          MbDataTable = PopulateModbusMap(current_csv_row);          
+        }
+
         dataGrid_mb_registers.DataSource = MbDataTable.DefaultView;
       }
       
@@ -529,7 +482,8 @@ namespace ModbusSimulatorSlave
     {
       isFormClosing = true;
       this.data_refresh_timer.Stop();
-      Disconnect();      
+      CloseSession();
+      CloseChannel();    
     }
     
     // If session is closed from another interface, 
