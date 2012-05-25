@@ -25,10 +25,6 @@ namespace ModbusSimulatorSlave
       this.cfg_mb_per_port.Value = 1;
       this.cfg_start_mb_addr.Value = 1;
       this.cfg_tcp_port_start.Value = 502;
-      
-      //Connect();
-      
-      //InitializeModbusMap();
     }
     
 
@@ -208,7 +204,6 @@ namespace ModbusSimulatorSlave
             mb_addr_start += 1;
           }
           
-          //Connect();
           InitializeModbusMap();
           
           tcp_port += 1;
