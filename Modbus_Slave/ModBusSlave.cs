@@ -13,6 +13,8 @@ using TMW.SCL.MB;
 using TMW.SCL.MB.Slave;
 using TMW.SCL.ProtocolAnalyzer;
 
+using ModbusSimulatorSlave;
+
 namespace ModbusSimulatorSlave
 {
   public partial class FormMBSimSlave : Form
@@ -238,10 +240,27 @@ namespace ModbusSimulatorSlave
       //create a buffer datatable
       DataTable dtable = new DataTable();      
       
-      //Open File
+      //open file
       StreamReader csv_file = File.OpenText(full);
       
+      //read first line to determine device name and byte order
       string file_line = csv_file.ReadLine();
+      string[] _buffer_str = file_line.Split(',');
+      
+      string[] _device_name = _buffer_str[0].Split(':');
+      string[] _byte_order = _buffer_str[1].Split(':');
+      
+      //write the device name and byte order to the screen
+      text_device_name.Text = _device_name[1].Trim();
+      text_byte_order.Text = _byte_order[1].Trim();
+      
+      //format byte order string to all lower case and replace space with underscore
+      _byte_order[1] = _byte_order[1].ToLower();
+      _byte_order[1] = _byte_order[1].Trim();
+      byte_order = _byte_order[1].Replace(' ', '_');
+      
+      //read second line to determine column headers
+      file_line = csv_file.ReadLine();
       string[] file_header = file_line.Split(',');
       
       DataRow drow = dtable.NewRow();
@@ -253,15 +272,16 @@ namespace ModbusSimulatorSlave
       
       while (csv_file.EndOfStream == false)
       {
+        //read next line to import the data, convert all strings to lower case
         file_line = csv_file.ReadLine();
         file_line = file_line.ToLower();
-        string[] buffer_str = file_line.Split(',');
+        _buffer_str = file_line.Split(',');
         
         drow = dtable.NewRow();
         
-        for (int i = 0; i < buffer_str.Length; i++)
+        for (int i = 0; i < _buffer_str.Length; i++)
         {
-          drow[file_header[i]] = buffer_str[i];
+          drow[file_header[i]] = _buffer_str[i];
         }
         
         dtable.Rows.Add(drow);
@@ -281,121 +301,11 @@ namespace ModbusSimulatorSlave
       
       SMBSimHReg hold_reg_point;
       
-      for (ushort i = 0; i < 2000; i++)
+      for (ushort i = 0; i < 41000; i++)
       {
         hold_reg_point = SimulatorDatabase.addHreg(i, 0);
       }
     }
-    
-    
-    
-    
-/// <summary>
-/// Uses the data from the imported CSV file to fill the Modbus Map registers
-/// </summary>
-/// <param name="row_number"></param>
-/// <returns></returns>
-    private DataTable PopulateModbusMap(int row_number)
-    {
-      if (row_number == Convert.ToInt32(CsvDataTable.Rows.Count.ToString()))
-        return null;
-      
-      //determine the size of the data set
-      int row_count = Convert.ToInt32(CsvDataTable.Rows.Count.ToString());
-      int column_count = Convert.ToInt32(CsvDataTable.Columns.Count.ToString());
-      
-      ushort mb_register_start;
-      int mb_register_count;
-      ushort[] mb_register_data = new ushort[2];
-      
-      DataTable mb_data = new DataTable();
-      mb_data.Columns.Add("MB Register");
-      mb_data.Columns.Add("MB Data");      
-      
-      DataRow drow = mb_data.NewRow();
-      
-      Int16 buffer_int16;
-      UInt16 buffer_uint16;
-
-      //check the type of register
-      for (int i = 1; i < (column_count); i++)
-      {
-        mb_register_start = Convert.ToUInt16(CsvDataTable.Rows[1][i]);
-        
-        if (CsvDataTable.Rows[row_number][i].ToString() != "")
-        {
-          //calculate modbus register values for data
-          switch (CsvDataTable.Rows[0][i].ToString())
-          {
-          case "float":
-              mb_register_count = 2;
-              mb_register_data = ModbusRegConverterFloat(Convert.ToSingle(CsvDataTable.Rows[row_number][i].ToString()));
-              break;
-  
-          case "sint32":
-              mb_register_count = 2;
-              mb_register_data = ModbusRegConverterInt32(Convert.ToInt32(CsvDataTable.Rows[row_number][i].ToString()));
-              break;
-          case "uint32":
-              mb_register_count = 2;
-              mb_register_data = ModbusRegConverterUInt32(Convert.ToUInt32(CsvDataTable.Rows[row_number][i].ToString()));
-              break;
-          case "sint16":
-              mb_register_count = 1;
-              buffer_int16 = Convert.ToInt16(CsvDataTable.Rows[row_number][i].ToString());
-              mb_register_data[0] = (ushort)(buffer_int16);
-              mb_register_data[1] = 0;
-              break;
-          case "uint16":
-              mb_register_count = 1;
-              buffer_uint16 = Convert.ToUInt16(CsvDataTable.Rows[row_number][i].ToString());
-              mb_register_data[0] = (ushort)(buffer_uint16);
-              mb_register_data[1] = 0;
-              break;
-          default:
-            mb_register_count = 1;
-            mb_register_data[0] = (ushort)0;
-            mb_register_data[1] = 0;
-          	break;
-          }
-        }
-        else
-        {
-          mb_register_count = 1;
-          mb_register_data[0] = (ushort)0;
-          mb_register_data[1] = 0;
-        }
-        
-        
-        if (mb_register_count == 2)
-        {
-          drow["MB Register"] = mb_register_start;
-          drow["MB Data"] = mb_register_data[0];
-          mb_data.Rows.Add(drow);
-          
-          drow = mb_data.NewRow();
-          drow["MB Register"] = mb_register_start + 1;
-          drow["MB Data"] = mb_register_data[1];
-          mb_data.Rows.Add(drow);
-          
-          SimulatorDatabase.setHregValue((ushort)(mb_register_start), mb_register_data[0]);
-          SimulatorDatabase.setHregValue((ushort)(mb_register_start + 1), mb_register_data[1]);
-        }
-        else
-        {
-          drow["MB Register"] = mb_register_start;
-          drow["MB Data"] = mb_register_data[0];
-          mb_data.Rows.Add(drow);
-          
-          SimulatorDatabase.setHregValue((ushort)(mb_register_start), mb_register_data[1]);
-        }
-        
-        drow = mb_data.NewRow();
-      }
-      
-      return mb_data;
-    }
-
     
     
     
@@ -417,63 +327,13 @@ namespace ModbusSimulatorSlave
         
         for (uint i = 0; i < cfg_mb_per_port.Value; i++)
         {
-          MbDataTable = PopulateModbusMap(current_csv_row);          
+          MbDataTable = PopulateModbusMap(current_csv_row, CsvDataTable, byte_order);          
         }
 
         dataGrid_mb_registers.DataSource = MbDataTable.DefaultView;
       }
       
     }
-    
-    
-    
-    
-    private ushort[] ModbusRegConverterFloat(float input)
-    {
-      byte[] _mb_reg_bytes = new byte[4];
-      ushort[] _mb_reg = new ushort[2];
-      
-      _mb_reg_bytes = BitConverter.GetBytes(input);
-      
-      _mb_reg[0] = (ushort)(BitConverter.ToInt16(_mb_reg_bytes, 0));
-      _mb_reg[1] = (ushort)(BitConverter.ToInt16(_mb_reg_bytes, 2));
-      
-      return _mb_reg;
-    }
-    
-    
-    
-    
-    private ushort[] ModbusRegConverterInt32(Int32 input)
-    {
-      byte[] _mb_reg_bytes = new byte[4];
-      ushort[] _mb_reg = new ushort[2];
-      
-      _mb_reg_bytes = BitConverter.GetBytes(input);
-      
-      _mb_reg[0] = (ushort)(BitConverter.ToInt16(_mb_reg_bytes, 0));
-      _mb_reg[1] = (ushort)(BitConverter.ToInt16(_mb_reg_bytes, 2));
-      
-      return _mb_reg;
-    }
-    
-    
-    
-    
-    
-    private ushort[] ModbusRegConverterUInt32(UInt32 input)
-    {
-      byte[] _mb_reg_bytes = new byte[4];
-      ushort[] _mb_reg = new ushort[2];
-      
-      _mb_reg_bytes = BitConverter.GetBytes(input);
-      
-      _mb_reg[0] = (ushort)(BitConverter.ToUInt32(_mb_reg_bytes, 0));
-      _mb_reg[1] = (ushort)(BitConverter.ToUInt32(_mb_reg_bytes, 2));
-      
-      return _mb_reg;
-    }
-    
     
     
     
@@ -517,6 +377,7 @@ namespace ModbusSimulatorSlave
     private String m_sessionId = null;
     private String m_ip = "*.*.*.*";
     private UInt16 m_port = 502;
+    private string byte_order;
     
     private MBChannel Channel;
     private SMBSession MbSlaveSession;

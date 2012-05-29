@@ -42,8 +42,6 @@ namespace ModbusSimulatorSlave
       this.dataGrid_imported = new System.Windows.Forms.DataGridView();
       this.gb_mb_session = new System.Windows.Forms.GroupBox();
       this.open_mb_session = new System.Windows.Forms.CheckBox();
-      this.label5 = new System.Windows.Forms.Label();
-      this.text_total_mb_devices = new System.Windows.Forms.TextBox();
       this.cfg_mb_per_port = new System.Windows.Forms.NumericUpDown();
       this.cfg_start_mb_addr = new System.Windows.Forms.NumericUpDown();
       this.label4 = new System.Windows.Forms.Label();
@@ -51,6 +49,10 @@ namespace ModbusSimulatorSlave
       this.label1 = new System.Windows.Forms.Label();
       this.cfg_tcp_port = new System.Windows.Forms.NumericUpDown();
       this.gb_mb_data = new System.Windows.Forms.GroupBox();
+      this.label_byte_order = new System.Windows.Forms.Label();
+      this.text_byte_order = new System.Windows.Forms.TextBox();
+      this.label_device_name = new System.Windows.Forms.Label();
+      this.text_device_name = new System.Windows.Forms.TextBox();
       this.checkBox3 = new System.Windows.Forms.CheckBox();
       this.text_current_row = new System.Windows.Forms.TextBox();
       this.label_current_row = new System.Windows.Forms.Label();
@@ -156,8 +158,6 @@ namespace ModbusSimulatorSlave
       // gb_mb_session
       // 
       this.gb_mb_session.Controls.Add(this.open_mb_session);
-      this.gb_mb_session.Controls.Add(this.label5);
-      this.gb_mb_session.Controls.Add(this.text_total_mb_devices);
       this.gb_mb_session.Controls.Add(this.cfg_mb_per_port);
       this.gb_mb_session.Controls.Add(this.cfg_start_mb_addr);
       this.gb_mb_session.Controls.Add(this.label4);
@@ -186,24 +186,6 @@ namespace ModbusSimulatorSlave
       this.open_mb_session.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
       this.open_mb_session.UseVisualStyleBackColor = false;
       this.open_mb_session.CheckedChanged += new System.EventHandler(this.SessionManagement);
-      // 
-      // label5
-      // 
-      this.label5.Location = new System.Drawing.Point(488, 24);
-      this.label5.Name = "label5";
-      this.label5.Size = new System.Drawing.Size(176, 23);
-      this.label5.TabIndex = 33;
-      this.label5.Text = "Total Number of ModBus Devices";
-      this.label5.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-      // 
-      // text_total_mb_devices
-      // 
-      this.text_total_mb_devices.BackColor = System.Drawing.SystemColors.Info;
-      this.text_total_mb_devices.Location = new System.Drawing.Point(672, 24);
-      this.text_total_mb_devices.Name = "text_total_mb_devices";
-      this.text_total_mb_devices.Size = new System.Drawing.Size(56, 20);
-      this.text_total_mb_devices.TabIndex = 26;
-      this.text_total_mb_devices.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
       // 
       // cfg_mb_per_port
       // 
@@ -248,7 +230,7 @@ namespace ModbusSimulatorSlave
       this.label1.Text = "Number of ModBus Devices Per TCP Port";
       this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
-      // cfg_tcp_port_start
+      // cfg_tcp_port
       // 
       this.cfg_tcp_port.Location = new System.Drawing.Point(392, 24);
       this.cfg_tcp_port.Maximum = new decimal(new int[] {
@@ -256,13 +238,17 @@ namespace ModbusSimulatorSlave
                   0,
                   0,
                   0});
-      this.cfg_tcp_port.Name = "cfg_tcp_port_start";
+      this.cfg_tcp_port.Name = "cfg_tcp_port";
       this.cfg_tcp_port.Size = new System.Drawing.Size(56, 20);
       this.cfg_tcp_port.TabIndex = 21;
       this.cfg_tcp_port.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
       // 
       // gb_mb_data
       // 
+      this.gb_mb_data.Controls.Add(this.label_byte_order);
+      this.gb_mb_data.Controls.Add(this.text_byte_order);
+      this.gb_mb_data.Controls.Add(this.label_device_name);
+      this.gb_mb_data.Controls.Add(this.text_device_name);
       this.gb_mb_data.Controls.Add(this.checkBox3);
       this.gb_mb_data.Controls.Add(this.text_current_row);
       this.gb_mb_data.Controls.Add(this.label_current_row);
@@ -273,6 +259,42 @@ namespace ModbusSimulatorSlave
       this.gb_mb_data.TabIndex = 37;
       this.gb_mb_data.TabStop = false;
       this.gb_mb_data.Text = "ModBus Data";
+      // 
+      // label_byte_order
+      // 
+      this.label_byte_order.Location = new System.Drawing.Point(456, 64);
+      this.label_byte_order.Name = "label_byte_order";
+      this.label_byte_order.Size = new System.Drawing.Size(136, 23);
+      this.label_byte_order.TabIndex = 39;
+      this.label_byte_order.Text = "Byte Order:";
+      this.label_byte_order.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+      // 
+      // text_byte_order
+      // 
+      this.text_byte_order.BackColor = System.Drawing.SystemColors.Info;
+      this.text_byte_order.Location = new System.Drawing.Point(600, 64);
+      this.text_byte_order.Name = "text_byte_order";
+      this.text_byte_order.Size = new System.Drawing.Size(136, 20);
+      this.text_byte_order.TabIndex = 38;
+      this.text_byte_order.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+      // 
+      // label_device_name
+      // 
+      this.label_device_name.Location = new System.Drawing.Point(48, 64);
+      this.label_device_name.Name = "label_device_name";
+      this.label_device_name.Size = new System.Drawing.Size(144, 23);
+      this.label_device_name.TabIndex = 37;
+      this.label_device_name.Text = "Device Name:";
+      this.label_device_name.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+      // 
+      // text_device_name
+      // 
+      this.text_device_name.BackColor = System.Drawing.SystemColors.Info;
+      this.text_device_name.Location = new System.Drawing.Point(192, 64);
+      this.text_device_name.Name = "text_device_name";
+      this.text_device_name.Size = new System.Drawing.Size(256, 20);
+      this.text_device_name.TabIndex = 36;
+      this.text_device_name.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
       // 
       // checkBox3
       // 
@@ -320,7 +342,6 @@ namespace ModbusSimulatorSlave
       this.Controls.Add(this.gb_mb_outputs);
       this.Controls.Add(this.gb_data_file);
       this.DoubleBuffered = true;
-      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
       this.Name = "FormMBSimSlave";
@@ -335,7 +356,6 @@ namespace ModbusSimulatorSlave
       this.gb_data_imported.ResumeLayout(false);
       ((System.ComponentModel.ISupportInitialize)(this.dataGrid_imported)).EndInit();
       this.gb_mb_session.ResumeLayout(false);
-      this.gb_mb_session.PerformLayout();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_mb_per_port)).EndInit();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_start_mb_addr)).EndInit();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_tcp_port)).EndInit();
@@ -343,6 +363,10 @@ namespace ModbusSimulatorSlave
       this.gb_mb_data.PerformLayout();
       this.ResumeLayout(false);
     }
+    private System.Windows.Forms.TextBox text_device_name;
+    private System.Windows.Forms.Label label_device_name;
+    private System.Windows.Forms.TextBox text_byte_order;
+    private System.Windows.Forms.Label label_byte_order;
     private System.Windows.Forms.CheckBox checkBox3;
     private System.Windows.Forms.GroupBox gb_mb_data;
     private System.Windows.Forms.NumericUpDown cfg_tcp_port;
@@ -351,8 +375,6 @@ namespace ModbusSimulatorSlave
     private System.Windows.Forms.Label label4;
     private System.Windows.Forms.NumericUpDown cfg_start_mb_addr;
     private System.Windows.Forms.NumericUpDown cfg_mb_per_port;
-    private System.Windows.Forms.TextBox text_total_mb_devices;
-    private System.Windows.Forms.Label label5;
     private System.Windows.Forms.CheckBox open_mb_session;
     private System.Windows.Forms.GroupBox gb_mb_session;
     private System.Windows.Forms.TextBox text_current_row;
