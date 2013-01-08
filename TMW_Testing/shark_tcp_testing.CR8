@@ -1,0 +1,1640 @@
+'################################################
+'Property of Draker Laboratories
+'################################################
+
+
+'## Description #################################
+'
+'Components:
+'  panel status
+'  ac meter: electro shark 100
+'################################################
+
+
+'## Change Log ##################################
+'2012-05-25 JHE Created
+'Note: Add changes to the top of the list, using the format:
+'YYYY-MM-DD JQP: Made this change and that change
+'################################################
+
+
+'## Versions ####################################
+Public draker_base_ver As String = "4.02.00"
+Public draker_pnl_status_ver As String = "4.02.01"
+Public draker_shark_100_ver As String = "4.02.00"
+'################################################
+
+
+
+
+
+'## Configuration ###############################
+PipeLineMode
+
+'part number macros (do not edit)
+Const NOT_USED = 0
+Const CUSTOM = 1
+Const DL202 = 2
+Const DL208 = 3
+Const DL242 = 4
+Const DL264 = 5
+Const DL274 = 6
+
+'draker part number for the basestation
+Const DRAKER_PN = DL208
+
+'name of the configuration file
+Const CFG_FILE = "shark_tcp_testing.cfg"
+
+'set the maximum number of devices and ports in the config file
+Const CFG_DEVICE_MAX = 10
+Const CFG_PORT_MAX = 10
+
+'set to true if any serial device communicates over tcp
+Const CFG_TCP_ENABLE = TRUE
+
+'set interval time in seconds for each scan and slow sequence do/while loop
+Const CFG_SCAN_INTERVAL_MAIN = 6
+Const CFG_SCAN_INTERVAL_CLEAN = 30
+Const CFG_SCAN_INTERVAL_DIRTY = 30
+Const CFG_SCAN_INTERVAL_UTIL = 30
+
+'Note: ONLY FOR TCP DEVICES
+'  CFG_TCP_FAIL_MAX should be set to limit the time between refreshing
+'  tcp sockets to no less then 5 minutes. If the util scan interval is
+'  30 seconds, then refresh the socket after 10 failed attempts.
+
+'set the max comm failures before a tcp socket is closed and reopened
+Const CFG_TCP_FAIL_MAX = 10
+
+'################################################
+'electro shark 100
+Const MTR_TOTAL = 10
+Const MTR_SHARK_100_BAUD = 9600
+Const MTR_SHARK_100_TRIES = 1
+Const MTR_SHARK_100_TIMEOUT = 50
+
+'################################################
+
+
+
+
+
+'## Declarations ################################
+Const FREQ_REJECTION = _60HZ
+Const SP = Chr(32)
+Const TB = Chr(9)
+Const CR = Chr(13)
+Const LF = Chr(10)
+Const CRLF = CR & LF
+
+Const DRAKER_ID_FILE = ".draker_id"
+
+Public draker_id(3) As String * 12 = {"Not set", "YYYY-MM-DD", "DAS-1"}
+Alias draker_id = draker_panel_sn, draker_mfg_date, draker_das_name
+Public draker_das_name_save As Boolean
+
+Public draker_id_backup As Boolean
+Dim draker_id_updated As Boolean
+
+Public cfg_scan_timer_clean As Float
+Public cfg_scan_timer_dirty As Float
+Public cfg_scan_timer_util As Float
+Dim cfg_scan_delay_clean As Long
+Dim cfg_scan_delay_dirty As Long
+Dim cfg_scan_delay_util As Long
+
+Public cfg_reload As Boolean = TRUE
+Public cfg_reload_error As String * 1024
+Public cfg_device_total As Long
+Public cfg_device_current_clean As String * 32
+Public cfg_device_current_dirty As String * 32
+Dim cfg_counter_clean As Long
+Dim cfg_counter_dirty As Long
+Dim cfg_counter As Long
+
+Public cfg_port_total As Long
+Public cfg_ports(CFG_PORT_MAX) As Long
+Dim cfg_port_busy(CFG_PORT_MAX) As Boolean
+
+#If CFG_TCP_ENABLE
+Public cfg_tcp_open As Long
+Public cfg_tcp_open_override As Long
+
+Public cfg_tcp_addr(CFG_PORT_MAX) As String
+Public cfg_tcp_port(CFG_PORT_MAX) As Long
+#EndIf
+
+Public cfg_device_index(CFG_DEVICE_MAX) As Long
+Public cfg_device_type(CFG_DEVICE_MAX) As String * 32
+Public cfg_device_port_num(CFG_DEVICE_MAX) As Long
+Public cfg_device_addr(CFG_DEVICE_MAX) As Long
+Dim cfg_device_result(CFG_DEVICE_MAX) As Long
+
+Dim time_utc(9) As Long
+Alias time_utc(1) = time_utc_year
+Alias time_utc(2) = time_utc_month
+Alias time_utc(3) = time_utc_day
+Alias time_utc(4) = time_utc_hr
+Alias time_utc(5) = time_utc_min
+Alias time_utc(6) = time_utc_sec
+Alias time_utc(7) = time_utc_microsec
+Alias time_utc(8) = time_utc_day_of_week
+Alias time_utc(9) = time_utc_day_of_year
+
+Units cfg_scan_timer_clean = Sec
+Units cfg_scan_timer_dirty = Sec
+Units cfg_scan_timer_util = Sec
+
+'################################################
+'panel status
+Const PNL_CFG_SDI_PORT = 7
+
+Public pnl_cfg_charge_addr As Long = -1
+Public pnl_logger_voltage As Float
+Public pnl_logger_temp As Float
+Public pnl_logger_fault As Long
+Dim pnl_logger_faulted As Boolean
+
+Dim pnl_trigger_table As Boolean
+
+Units pnl_logger_voltage = Volts
+Units pnl_logger_temp = Deg C
+
+#If DRAKER_PN <> DL208
+Public pnl_input_voltage As Float
+Public pnl_input_current As Float
+Public pnl_battery_voltage As Float
+Public pnl_battery_current As Float
+Public pnl_load_current As Float
+Public pnl_charge_temp As Float
+Public pnl_charge_source As String * 20
+Public pnl_charge_state As String * 20
+Public pnl_charge_error As String * 20
+
+Dim pnl_charge_status_01 As Long
+Dim pnl_charge_status_02 As Long
+Dim pnl_charge_fault As Long
+
+Dim DIS_pnl_charge_sdi As Boolean
+
+Units pnl_input_voltage = Volts
+Units pnl_input_current = Amps
+Units pnl_battery_voltage = Volts
+Units pnl_battery_current = Amps
+Units pnl_load_current = Amps
+Units pnl_charge_temp = Deg C
+#EndIf
+
+'################################################
+'electro shark 100
+Public mtr_comm_code(MTR_TOTAL) As Long
+
+Public mtr_ac_voltage_an(MTR_TOTAL) As Float
+Public mtr_ac_voltage_bn(MTR_TOTAL) As Float
+Public mtr_ac_voltage_cn(MTR_TOTAL) As Float
+Public mtr_ac_voltage_ab(MTR_TOTAL) As Float
+Public mtr_ac_voltage_bc(MTR_TOTAL) As Float
+Public mtr_ac_voltage_ca(MTR_TOTAL) As Float
+Public mtr_ac_current_a(MTR_TOTAL) As Float
+Public mtr_ac_current_b(MTR_TOTAL) As Float
+Public mtr_ac_current_c(MTR_TOTAL) As Float
+Public mtr_ac_current_n(MTR_TOTAL) As Float
+Public mtr_ac_power(MTR_TOTAL) As Float
+Public mtr_ac_power_rcvd(MTR_TOTAL) As Float
+Public mtr_ac_power_delv(MTR_TOTAL) As Float
+Public mtr_ac_va(MTR_TOTAL) As Float
+Public mtr_ac_vars(MTR_TOTAL) As Float
+Public mtr_ac_pf(MTR_TOTAL) As Float
+Public mtr_ac_freq(MTR_TOTAL) As Float
+
+Public mtr_ac_energy_rcvd(MTR_TOTAL) As Float
+Public mtr_ac_energy_delv(MTR_TOTAL) As Float
+Public mtr_ac_energy_net(MTR_TOTAL) As Float
+Public mtr_ac_energy_total(MTR_TOTAL) As Float
+Public mtr_ac_va_hrs_total(MTR_TOTAL) As Float
+Public mtr_ac_var_hrs_pos(MTR_TOTAL) As Float
+Public mtr_ac_var_hrs_neg(MTR_TOTAL) As Float
+Public mtr_ac_var_hrs_net(MTR_TOTAL) As Float
+Public mtr_ac_var_hrs_total(MTR_TOTAL) As Float
+
+Public mtr_ac_voltage_ab_angle(MTR_TOTAL) As Float
+Public mtr_ac_voltage_bc_angle(MTR_TOTAL) As Float
+Public mtr_ac_voltage_ca_angle(MTR_TOTAL) As Float
+Public mtr_ac_current_a_angle(MTR_TOTAL) As Float
+Public mtr_ac_current_b_angle(MTR_TOTAL) As Float
+Public mtr_ac_current_c_angle(MTR_TOTAL) As Float
+
+Public mtr_fault_01(MTR_TOTAL) As Long
+Public mtr_sn(MTR_TOTAL) As String * 40
+Public mtr_fw_ver(MTR_TOTAL) As String * 40
+Public mtr_map_ver(MTR_TOTAL) As String * 40
+Public mtr_config(MTR_TOTAL) As String * 64
+
+Public mtr_ac_config(MTR_TOTAL) As String * 20
+Public mtr_ac_ct_ratio(MTR_TOTAL) As String * 20
+Public mtr_ac_pt_ratio(MTR_TOTAL) As String * 20
+
+Dim DIS_mtr_ac_voltage_an(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_voltage_bn(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_voltage_cn(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_voltage_ab(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_voltage_bc(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_voltage_ca(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_current_a(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_current_b(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_current_c(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_current_n(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_power(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_power_rcvd(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_power_delv(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_va(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_vars(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_pf(MTR_TOTAL) As Boolean
+Dim DIS_mtr_ac_freq(MTR_TOTAL) As Boolean
+
+Dim mtr_last_record(MTR_TOTAL) As Long
+Dim mtr_last_day(MTR_TOTAL) As Long
+
+Units mtr_ac_voltage_an = Volts
+Units mtr_ac_voltage_bn = Volts
+Units mtr_ac_voltage_cn = Volts
+Units mtr_ac_voltage_ab = Volts
+Units mtr_ac_voltage_bc = Volts
+Units mtr_ac_voltage_ca = Volts
+Units mtr_ac_current_a = Amps
+Units mtr_ac_current_b = Amps
+Units mtr_ac_current_c = Amps
+Units mtr_ac_current_n = Amps
+Units mtr_ac_power = Watts
+Units mtr_ac_power_rcvd = Watts
+Units mtr_ac_power_delv = Watts
+Units mtr_ac_va = VAs
+Units mtr_ac_vars = VARs
+Units mtr_ac_freq = Hz
+
+Units mtr_ac_energy_rcvd = kWh
+Units mtr_ac_energy_delv = kWh
+Units mtr_ac_energy_net = kWh
+Units mtr_ac_energy_total = kWh
+Units mtr_ac_va_hrs_total = kVAh
+Units mtr_ac_var_hrs_pos = kVARh
+Units mtr_ac_var_hrs_neg = kVARh
+Units mtr_ac_var_hrs_net = kVARh
+Units mtr_ac_var_hrs_total = kVARh
+
+Units mtr_ac_voltage_ab_angle = Deg
+Units mtr_ac_voltage_bc_angle = Deg
+Units mtr_ac_voltage_ca_angle = Deg
+Units mtr_ac_current_a_angle = Deg
+Units mtr_ac_current_b_angle = Deg
+Units mtr_ac_current_c_angle = Deg
+
+
+
+
+
+
+'## Data Tables #################################
+DataTable(fifteenMin, TRUE, -1)
+  DataInterval(0, 15, MIN, 0)
+  #If LoggerType = CR1000
+  CardOut(0, -1)
+  #EndIf
+  Sample(1, draker_base_ver, String)
+  Sample(1, draker_panel_sn, String)
+
+  'panel status
+  Sample(1, draker_pnl_status_ver, String)
+
+  Average(1, pnl_logger_voltage, IEEE4, FALSE)
+  Minimum(1, pnl_logger_voltage, IEEE4, FALSE, 0)
+  Average(1, pnl_logger_temp, IEEE4, FALSE)
+  Sample(1, pnl_logger_fault, Long)
+
+  #If DRAKER_PN <> DL208
+    Average(1, pnl_input_voltage, IEEE4, DIS_pnl_charge_sdi)
+    Average(1, pnl_input_current, IEEE4, DIS_pnl_charge_sdi)
+    Average(1, pnl_battery_voltage, IEEE4, DIS_pnl_charge_sdi)
+    Average(1, pnl_battery_current, IEEE4, DIS_pnl_charge_sdi)
+    Average(1, pnl_load_current, IEEE4, DIS_pnl_charge_sdi)
+    Average(1, pnl_charge_temp, IEEE4, DIS_pnl_charge_sdi)
+    Sample(1, pnl_charge_status_01, Long)
+    Sample(1, pnl_charge_status_02, Long)
+    Sample(1, pnl_charge_fault, Long)
+  #EndIf
+
+  'electro shark 100
+  Sample(1, draker_shark_100_ver, String)
+  Sample(MTR_TOTAL, mtr_comm_code(), Long)
+
+  Average(MTR_TOTAL, mtr_ac_voltage_an(), IEEE4, DIS_mtr_ac_voltage_an())
+  Average(MTR_TOTAL, mtr_ac_voltage_bn(), IEEE4, DIS_mtr_ac_voltage_bn())
+  Average(MTR_TOTAL, mtr_ac_voltage_cn(), IEEE4, DIS_mtr_ac_voltage_cn())
+  Average(MTR_TOTAL, mtr_ac_voltage_ab(), IEEE4, DIS_mtr_ac_voltage_ab())
+  Average(MTR_TOTAL, mtr_ac_voltage_bc(), IEEE4, DIS_mtr_ac_voltage_bc())
+  Average(MTR_TOTAL, mtr_ac_voltage_ca(), IEEE4, DIS_mtr_ac_voltage_ca())
+  Average(MTR_TOTAL, mtr_ac_current_a(), IEEE4, DIS_mtr_ac_current_a())
+  Average(MTR_TOTAL, mtr_ac_current_b(), IEEE4, DIS_mtr_ac_current_b())
+  Average(MTR_TOTAL, mtr_ac_current_c(), IEEE4, DIS_mtr_ac_current_c())
+  Average(MTR_TOTAL, mtr_ac_current_n(), IEEE4, DIS_mtr_ac_current_n())
+  Average(MTR_TOTAL, mtr_ac_power(), IEEE4, DIS_mtr_ac_power())
+  Average(MTR_TOTAL, mtr_ac_power_rcvd(), IEEE4, DIS_mtr_ac_power_rcvd())
+  Average(MTR_TOTAL, mtr_ac_power_delv(), IEEE4, DIS_mtr_ac_power_delv())
+  Average(MTR_TOTAL, mtr_ac_va(), IEEE4, DIS_mtr_ac_va())
+  Average(MTR_TOTAL, mtr_ac_vars(), IEEE4, DIS_mtr_ac_vars())
+  Average(MTR_TOTAL, mtr_ac_pf(), IEEE4, DIS_mtr_ac_pf())
+  Average(MTR_TOTAL, mtr_ac_freq(), IEEE4, DIS_mtr_ac_freq())
+
+  Sample(MTR_TOTAL, mtr_ac_energy_rcvd(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_energy_delv(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_energy_net(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_energy_total(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_va_hrs_total(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_var_hrs_pos(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_var_hrs_neg(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_var_hrs_net(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_var_hrs_total(), IEEE4)
+
+  Sample(MTR_TOTAL, mtr_ac_voltage_ab_angle(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_voltage_bc_angle(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_voltage_ca_angle(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_current_a_angle(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_current_b_angle(), IEEE4)
+  Sample(MTR_TOTAL, mtr_ac_current_c_angle(), IEEE4)
+
+  Sample(MTR_TOTAL, mtr_fault_01(), UINT4)
+  Sample(MTR_TOTAL, mtr_sn(), String)
+  Sample(MTR_TOTAL, mtr_fw_ver(), String)
+  Sample(MTR_TOTAL, mtr_map_ver(), String)
+  Sample(MTR_TOTAL, mtr_config(), String)
+
+  Sample(MTR_TOTAL, mtr_ac_config(), String)
+  Sample(MTR_TOTAL, mtr_ac_ct_ratio(), String)
+  Sample(MTR_TOTAL, mtr_ac_pt_ratio(), String)
+
+ EndTable 'fifteenMin
+
+'panel status
+DataTable(panelStatus, pnl_trigger_table, 2000)
+  Sample(1, pnl_logger_fault, Long)
+
+  Sample(1, Status.WatchdogErrors, Long)
+  Sample(1, Status.VarOutOfBound, Long)
+  Sample(1, Status.SkippedScan, Long)
+  Sample(1, Status.SkippedSystemScan, Long)
+
+  Sample(1, Status.Battery, IEEE4)
+  Sample(1, Status.LithiumBattery, IEEE4)
+  Sample(1, Status.Low12VCount, Long)
+  Sample(1, Status.Low5VCount, Long)
+
+  #If DRAKER_PN <> DL208
+    Sample(1, pnl_input_voltage, IEEE4)
+    Sample(1, pnl_input_current, IEEE4)
+    Sample(1, pnl_battery_voltage, IEEE4)
+    Sample(1, pnl_battery_current, IEEE4)
+    Sample(1, pnl_load_current, IEEE4)
+    Sample(1, pnl_charge_temp, IEEE4)
+    Sample(1, pnl_charge_status_01, Long)
+    Sample(1, pnl_charge_status_02, Long)
+    Sample(1, pnl_charge_fault, Long)
+  #EndIf
+
+EndTable 'panelStatus
+
+'################################################
+
+
+
+
+
+'## Display Tables ##############################
+DisplayMenu("LIVE DATA", -2)
+  DisplayValue("Basestation SN:", draker_panel_sn)
+
+  'panel status
+  SubMenu("Panel Status")
+    DisplayValue("Logger SN", Status.SerialNumber)
+    DisplayValue("Logger Volt", pnl_logger_voltage)
+    DisplayValue("Logger Temp", pnl_logger_temp)
+    DisplayValue("Logger Fault", pnl_logger_faulted)
+
+    #If DRAKER_PN <> DL208
+      DisplayValue("Input Volt", pnl_input_voltage)
+      DisplayValue("Input Curr", pnl_input_current)
+      DisplayValue("Battery Volt", pnl_battery_voltage)
+      DisplayValue("Battery Curr", pnl_battery_current)
+      DisplayValue("Load Curr", pnl_load_current)
+      DisplayValue("Charge Temp", pnl_charge_temp)
+      DisplayValue("Charge State", pnl_charge_state)
+      DisplayValue("Charge Src", pnl_charge_source)
+      DisplayValue("Charge Error", pnl_charge_error)
+    #EndIf
+  EndSubMenu
+
+  'electro shark 100
+  SubMenu("AC Meter 1")
+    DisplayValue("Comm. Code", mtr_comm_code(1))
+    DisplayValue("SN", mtr_sn(1))
+    DisplayValue("Real Pwr", mtr_ac_power(1))
+    DisplayValue("Reactive Pwr", mtr_ac_vars(1))
+    DisplayValue("Pwr Factor", mtr_ac_pf(1))
+    DisplayValue("Frequency", mtr_ac_freq(1))
+    DisplayValue("A-B Volts", mtr_ac_voltage_ab(1))
+    DisplayValue("B-C Volts", mtr_ac_voltage_bc(1))
+    DisplayValue("C-A Volts", mtr_ac_voltage_ca(1))
+    DisplayValue("A-N Volts", mtr_ac_voltage_an(1))
+    DisplayValue("B-N Volts", mtr_ac_voltage_bn(1))
+    DisplayValue("C-N Volts", mtr_ac_voltage_cn(1))
+    DisplayValue("Phase A Cur", mtr_ac_current_a(1))
+    DisplayValue("Phase B Cur", mtr_ac_current_b(1))
+    DisplayValue("Phase C Cur", mtr_ac_current_c(1))
+  EndSubMenu
+
+EndMenu
+'################################################
+
+
+
+
+
+'## Functions ###################################
+
+'panel status
+Function getLoggerFault()
+  Dim fault_bit(16) As Boolean
+  Dim fault As Long
+  Dim counter As Long
+
+  'check for logger program faults
+  fault_bit(1) = (Status.WatchdogErrors > 0)
+  fault_bit(2) = (Status.VarOutOfBound > 0)
+  fault_bit(3) = (Status.SkippedScan > 0)
+  fault_bit(4) = (Status.SkippedSystemScan > 0)
+
+  'check for logger power faults
+  fault_bit(9) = (Status.Battery < 12.3)
+  fault_bit(10) = (Status.LithiumBattery < 3.3)
+  fault_bit(11) = (Status.Low12VCount > 0)
+  fault_bit(12) = (Status.Low5VCount > 0)
+  fault_bit(13) = (Status.Battery < 11.5)
+
+  'convert fault array to bits
+  fault = 0
+  For counter = 1 To 16
+    If fault_bit(counter) Then
+      fault = fault OR (1 << (counter - 1))
+    EndIf
+  Next
+
+  'trigger table if faults have changed
+  If pnl_logger_fault <> fault Then
+    pnl_logger_fault = fault
+    pnl_trigger_table = TRUE
+  EndIf
+
+  'set boolean value for display menu
+  pnl_logger_faulted = (fault <> 0)
+EndFunction 'getLoggerFault
+
+
+
+
+
+#If DRAKER_PN <> DL208
+Function getCh200(addr As Long)
+  Dim buffer_flt(9) As Float
+  Dim fault As Long
+
+  'query charge controller
+  SDI12Recorder(buffer_flt(), PNL_CFG_SDI_PORT, addr, "CC!", 1.0, 0)
+
+  'if data was received then store the values
+  If buffer_flt(1) <> NAN Then
+    pnl_battery_voltage = buffer_flt(1)
+    pnl_battery_current = buffer_flt(2)
+    pnl_load_current = buffer_flt(3)
+    pnl_input_voltage = buffer_flt(4)
+    pnl_input_current = buffer_flt(5)
+    pnl_charge_temp = buffer_flt(6)
+    pnl_charge_status_01 = buffer_flt(7)
+    pnl_charge_status_02 = buffer_flt(8)
+
+    'set fault bits (see value mapping below)
+    fault = 0
+    If buffer_flt(7) = -1 Then fault = fault OR (1 << 0)
+    If buffer_flt(9) = 1 Then fault = fault OR (1 << 1)
+
+    'trigger table if faults have changed
+    If pnl_charge_fault <> fault Then
+      pnl_charge_fault = fault
+      pnl_trigger_table = TRUE
+    EndIf
+
+    'parse charge state
+    Select Case buffer_flt(7)
+    Case -1
+      pnl_charge_state = "Regulator Fault"
+    Case 0
+      pnl_charge_state = "No Charge"
+    Case 1
+      pnl_charge_state = "Current limited"
+    Case 2
+      pnl_charge_state = "Cycle"
+    Case 3
+      pnl_charge_state = "Float"
+    Case 4
+      pnl_charge_state = "Battery test"
+    Case Else
+      pnl_charge_state = ""
+    EndSelect
+
+    'parse charge source
+    Select Case buffer_flt(8)
+    Case 0
+      pnl_charge_source = "None"
+    Case 1
+      pnl_charge_source = "Solar Panel"
+    Case 2
+      pnl_charge_source = "Continuous"
+    Case Else
+      pnl_charge_source = ""
+    EndSelect
+
+    'parse battery check
+    Select Case buffer_flt(9)
+    Case 0
+      pnl_charge_error = "None"
+    Case 1
+      pnl_charge_error = "Bad Battery"
+    Case Else
+      pnl_charge_error = ""
+    EndSelect
+
+  Else
+    pnl_battery_voltage = NAN
+    pnl_battery_current = NAN
+    pnl_load_current = NAN
+    pnl_input_voltage = NAN
+    pnl_input_current = NAN
+    pnl_charge_temp = NAN
+    pnl_charge_status_01 = 0
+    pnl_charge_status_02 = 0
+    pnl_charge_state = ""
+    pnl_charge_source = ""
+    pnl_charge_error = ""
+  EndIf
+
+  DIS_pnl_charge_sdi = (buffer_flt(1) = NAN)
+EndFunction 'getCh200
+#EndIf
+
+
+
+
+
+'electro shark 100
+Function getElectroShark100(num As Long, port As Long, addr As Long) As Long
+  Dim result_every(5) As Long
+  Dim result_daily(3) As Long
+
+  Dim buffer_lng(9) As Long
+  Dim buffer_flt(15) As Float
+  Dim buffer_cfg(5) As String
+  Dim buffer_str As String * 64
+
+  Dim current_record As Long
+  Dim current_day As Long
+  Dim counter As Long
+
+  Dim ct_numer As Long
+  Dim ct_denom As Long
+  Dim ct_mult As Long
+  Dim pt_numer As Long
+  Dim pt_denom As Long
+  Dim pt_mult As Long
+
+  'if num is out of bounds, return error code
+  If num < 1 OR num > MTR_TOTAL Then Return -9999
+
+  'capture a frozen copy of the record number, used for clearing
+  current_record = fifteenMin.Record
+
+  'reset the result codes
+  For counter = 1 To ArrayLength(result_every)
+    result_every(counter) = 0
+  Next
+
+  'query! instantaneous voltage, current, power, vars, power factor and frequency
+  ModBusMaster(result_every(1), port, MTR_SHARK_100_BAUD, addr, 3, buffer_flt(1), 1000 - 1, 15, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT)
+  If result_every(1) = 0 Then
+    mtr_ac_voltage_an(num) = buffer_flt(1)
+    mtr_ac_voltage_bn(num) = buffer_flt(2)
+    mtr_ac_voltage_cn(num) = buffer_flt(3)
+    mtr_ac_voltage_ab(num) = buffer_flt(4)
+    mtr_ac_voltage_bc(num) = buffer_flt(5)
+    mtr_ac_voltage_ca(num) = buffer_flt(6)
+    mtr_ac_current_a(num) = buffer_flt(7)
+    mtr_ac_current_b(num) = buffer_flt(8)
+    mtr_ac_current_c(num) = buffer_flt(9)
+    mtr_ac_power(num) = buffer_flt(10)
+    mtr_ac_power_rcvd(num) = IIf(buffer_flt(10) < 0, Abs(buffer_flt(10)), 0)
+    mtr_ac_power_delv(num) = IIf(buffer_flt(10) > 0, Abs(buffer_flt(10)), 0)
+    mtr_ac_vars(num) = buffer_flt(11)
+    mtr_ac_va(num) = buffer_flt(12)
+    mtr_ac_pf(num) = buffer_flt(13)
+    mtr_ac_freq(num) = buffer_flt(14)
+    mtr_ac_current_n(num) = buffer_flt(15)
+
+    DIS_mtr_ac_voltage_an(num) = FALSE
+    DIS_mtr_ac_voltage_bn(num) = FALSE
+    DIS_mtr_ac_voltage_cn(num) = FALSE
+    DIS_mtr_ac_voltage_ab(num) = FALSE
+    DIS_mtr_ac_voltage_bc(num) = FALSE
+    DIS_mtr_ac_voltage_ca(num) = FALSE
+    DIS_mtr_ac_current_a(num) = FALSE
+    DIS_mtr_ac_current_b(num) = FALSE
+    DIS_mtr_ac_current_c(num) = FALSE
+    DIS_mtr_ac_power(num) = FALSE
+    DIS_mtr_ac_power_rcvd(num) = FALSE
+    DIS_mtr_ac_power_delv(num) = FALSE
+    DIS_mtr_ac_vars(num) = FALSE
+    DIS_mtr_ac_va(num) = FALSE
+    DIS_mtr_ac_pf(num) = FALSE
+    DIS_mtr_ac_freq(num) = FALSE
+    DIS_mtr_ac_current_n(num) = FALSE
+
+  Else
+    DIS_mtr_ac_voltage_an(num) = TRUE
+    DIS_mtr_ac_voltage_bn(num) = TRUE
+    DIS_mtr_ac_voltage_cn(num) = TRUE
+    DIS_mtr_ac_voltage_ab(num) = TRUE
+    DIS_mtr_ac_voltage_bc(num) = TRUE
+    DIS_mtr_ac_voltage_ca(num) = TRUE
+    DIS_mtr_ac_current_a(num) = TRUE
+    DIS_mtr_ac_current_b(num) = TRUE
+    DIS_mtr_ac_current_c(num) = TRUE
+    DIS_mtr_ac_power(num) = TRUE
+    DIS_mtr_ac_power_rcvd(num) = TRUE
+    DIS_mtr_ac_power_delv(num) = TRUE
+    DIS_mtr_ac_vars(num) = TRUE
+    DIS_mtr_ac_va(num) = TRUE
+    DIS_mtr_ac_pf(num) = TRUE
+    DIS_mtr_ac_freq(num) = TRUE
+    DIS_mtr_ac_current_n(num) = TRUE
+
+    mtr_ac_voltage_an(num) = NAN
+    mtr_ac_voltage_bn(num) = NAN
+    mtr_ac_voltage_cn(num) = NAN
+    mtr_ac_voltage_ab(num) = NAN
+    mtr_ac_voltage_bc(num) = NAN
+    mtr_ac_voltage_ca(num) = NAN
+    mtr_ac_current_a(num) = NAN
+    mtr_ac_current_b(num) = NAN
+    mtr_ac_current_c(num) = NAN
+    mtr_ac_power(num) = NAN
+    mtr_ac_power_rcvd(num) = NAN
+    mtr_ac_power_delv(num) = NAN
+    mtr_ac_vars(num) = NAN
+    mtr_ac_va(num) = NAN
+    mtr_ac_pf(num) = NAN
+    mtr_ac_freq(num) = NAN
+    mtr_ac_current_n(num) = NAN
+  EndIf
+
+  'query energy
+  ModBusMaster(result_every(2), port, MTR_SHARK_100_BAUD, addr, 3, buffer_lng(1), -1100, 9, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT, 2)
+  If result_every(2) = 0 Then
+    mtr_ac_energy_rcvd(num) = buffer_lng(1)
+    mtr_ac_energy_delv(num) = buffer_lng(2)
+    mtr_ac_energy_net(num) = buffer_lng(3)
+    mtr_ac_energy_total(num) = buffer_lng(4)
+    mtr_ac_var_hrs_pos(num) = buffer_lng(5)
+    mtr_ac_var_hrs_neg(num) = buffer_lng(6)
+    mtr_ac_var_hrs_net(num) = buffer_lng(7)
+    mtr_ac_var_hrs_total(num) = buffer_lng(8)
+    mtr_ac_va_hrs_total(num) = buffer_lng(9)
+  EndIf
+
+  'query voltage and current phase angles
+  ModBusMaster(result_every(3), port, MTR_SHARK_100_BAUD, addr, 3, buffer_lng(1), 4100, 6, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT, 1)
+  If result_every(3) = 0 Then
+    mtr_ac_current_a_angle(num) = buffer_lng(1) * 0.1
+    mtr_ac_current_b_angle(num) = buffer_lng(2) * 0.1
+    mtr_ac_current_c_angle(num) = buffer_lng(3) * 0.1
+    mtr_ac_voltage_ab_angle(num) = buffer_lng(4) * 0.1
+    mtr_ac_voltage_bc_angle(num) = buffer_lng(5) * 0.1
+    mtr_ac_voltage_ca_angle(num) = buffer_lng(6) * 0.1
+
+  Else
+    mtr_ac_current_a_angle(num) = NAN
+    mtr_ac_current_b_angle(num) = NAN
+    mtr_ac_current_c_angle(num) = NAN
+    mtr_ac_voltage_ab_angle(num) = NAN
+    mtr_ac_voltage_bc_angle(num) = NAN
+    mtr_ac_voltage_ca_angle(num) = NAN
+  EndIf
+
+  'query system sanity indicator
+  ModBusMaster(result_every(4), port, MTR_SHARK_100_BAUD, addr, 3, buffer_lng(1), 40001, 1, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT, 1)
+  If result_every(4) = 0 Then
+    mtr_fault_01(num) = IIf(buffer_lng(1) <> 0, (1 << 0), 0)
+
+  ElseIf current_record <> mtr_last_record(num) Then
+    mtr_fault_01(num) = 0
+  EndIf
+
+  'query serial number
+  ModBusMaster(result_every(5), port, MTR_SHARK_100_BAUD, addr, 3, buffer_lng(1), 9, 8, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT, 1)
+  If result_every(5) = 0 Then
+
+    buffer_str = ""
+    For counter = 0 To 7
+      'add 2 spaces to the end of the string then overwrite them with 2 character bytes
+      buffer_str &= "  "
+      MoveBytes(buffer_str, counter * 2, buffer_lng(1 + counter), 2, 2)
+    Next
+    mtr_sn(num) = Trim(buffer_str)
+
+  EndIf
+
+  'if the day of year has incremented since the last collection, update these variables
+  current_day = time_utc_day_of_year
+  If current_day <> mtr_last_day(num) Then
+
+    'reset the daily result codes
+    For counter = 1 To ArrayLength(result_daily)
+      result_daily(counter) = 0
+    Next
+
+    'query firmware version, map version, and meter config (calibration frequency)
+    ModBusMaster(result_daily(1), port, MTR_SHARK_100_BAUD, addr, 3, buffer_lng(1), 18, 4, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT, 1)
+    If result_daily(1) = 0 Then
+
+      buffer_str = ""
+      For counter = 0 To 1
+        'add 2 spaces to the end of the string then overwrite them with 2 character bytes
+        buffer_str &= "  "
+        MoveBytes(buffer_str, counter * 2, buffer_lng(1 + counter), 2, 2)
+      Next
+      mtr_fw_ver(num) = Trim(buffer_str)
+
+      mtr_map_ver(num) = buffer_lng(3) AND &HFFFF
+      buffer_cfg(1) = "calib:" & (buffer_lng(4) AND &H003F) & "hz"
+
+    Else
+      mtr_fw_ver(num) = "NAN"
+      mtr_map_ver(num) = "NAN"
+      buffer_cfg(1) = "NAN"
+    EndIf
+
+    'query meter config
+    ModBusMaster(result_daily(2), port, MTR_SHARK_100_BAUD, addr, 3, buffer_lng(1), 30000, 7, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT, 1)
+    If result_daily(2) = 0 Then
+
+      'extract the values
+      ct_mult = buffer_lng(1) AND &H00FF
+      ct_denom = (buffer_lng(1) >> 8) AND &H00FF
+      ct_numer = buffer_lng(2) AND &HFFFF
+      pt_numer = buffer_lng(3) AND &HFFFF
+      pt_denom = buffer_lng(4) AND &HFFFF
+      pt_mult = ((buffer_lng(5) << 4) AND &H0F00) OR ((buffer_lng(5) >> 8) AND &H00FF)
+
+      'create the ct ratio string and add the muliplier if not equal to 1
+      mtr_ac_ct_ratio(num) = FormatLong(ct_numer, "%01u") & ":" & FormatLong(ct_denom, "%01u")
+      If ct_mult <> 1 Then
+        mtr_ac_ct_ratio(num) = FormatLong(ct_mult, "%01u") & " * " & mtr_ac_ct_ratio(num)
+      EndIf
+
+      'create the pt ratio string and add the muliplier if not equal to 1
+      mtr_ac_pt_ratio(num) = FormatLong(pt_numer, "%01u") & ":" & FormatLong(pt_denom, "%01u")
+      If pt_mult <> 1 Then
+        mtr_ac_pt_ratio(num) = FormatLong(pt_mult, "%01u") & " * " & mtr_ac_pt_ratio(num)
+      EndIf
+
+      'parse meter hookup
+      Select Case (buffer_lng(5) AND &H000F)
+      Case 0
+        mtr_ac_config(num) = "3wye"
+      Case 1
+        mtr_ac_config(num) = "delta"
+      Case 3
+        mtr_ac_config(num) = "2.5wye"
+      Else
+        mtr_ac_config(num) = "error"
+      EndSelect
+
+      'parse energy scale
+      buffer_cfg(2) = "scale:"
+      Select Case ((buffer_lng(7) >> 4) AND &H0007)
+      Case 0
+        buffer_cfg(2) &= "unit"
+      Case 3
+        buffer_cfg(2) &= "kilo"
+      Case 6
+        buffer_cfg(2) &= "mega"
+      EndSelect
+
+      'parse energy decimal places
+      buffer_cfg(3) = "decimal:" & (buffer_lng(7) AND &H0007)
+
+    Else
+      mtr_ac_ct_ratio(num) = "NAN"
+      mtr_ac_pt_ratio(num) = "NAN"
+      mtr_ac_config(num) = "NAN"
+      buffer_cfg(2) = "NAN"
+      buffer_cfg(3) = "NAN"
+    EndIf
+
+    'query meter config flags
+    ModBusMaster(result_daily(3), port, MTR_SHARK_100_BAUD, addr, 3, buffer_lng(1), 30015, 1, MTR_SHARK_100_TRIES, MTR_SHARK_100_TIMEOUT, 1)
+    If result_daily(3) = 0 Then
+
+      'parse power direction
+      buffer_cfg(4) = "dir:"
+      If buffer_lng(1) AND (1 << 2) Then
+        buffer_cfg(4) &= "gen"
+      Else
+        buffer_cfg(4) &= "load"
+      EndIf
+
+      'parse power factor sign correction
+      buffer_cfg(5) = "pf:"
+      If buffer_lng(1) AND (1 << 1) Then
+        buffer_cfg(5) &= "flip"
+      Else
+        buffer_cfg(5) &= "none"
+      EndIf
+
+    Else
+      buffer_cfg(4) = "NAN"
+      buffer_cfg(5) = "NAN"
+    EndIf
+
+    'build config string
+    buffer_str = ""
+    For counter = 1 To ArrayLength(buffer_cfg)
+
+      'delimit list with commas
+      If counter > 1 AND buffer_str <> "" Then buffer_str &= ","
+      buffer_str &= buffer_cfg(counter)
+    Next
+    mtr_config(num) = buffer_str
+
+    'check the daily result codes and exit if any are nonzero
+    For counter = ArrayLength(result_daily) To 1 Step -1
+      If result_daily(counter) <> 0 Then ExitFor
+
+      'update the last day if we reach the first call and haven't exited
+      If counter = 1 Then mtr_last_day(num) = current_day
+    Next
+  EndIf
+
+  'capture the last record for next time
+  mtr_last_record(num) = current_record
+
+  'use instantaneous measurement query as indicator for comm code
+  If result_every(1) = 0 Then
+    mtr_comm_code(num) = 0
+
+  ElseIf result_every(1) < 0 Then
+    mtr_comm_code(num) = result_every(1)
+
+  Else
+    'only increment comm code if it hadn't been negative
+    If mtr_comm_code(num) >= 0 Then
+      mtr_comm_code(num) += 1
+    Else
+      mtr_comm_code(num) = 1
+    EndIf
+  EndIf
+
+  Return mtr_comm_code(num)
+EndFunction 'getElectroShark100
+
+
+
+
+'base
+Function readDrakerID() As Boolean
+  Dim file_handle As Long
+  Dim line_buffer As String * 64
+
+  'try to open the draker id file, exit if file doesn't exist
+  file_handle = FileOpen("CPU:" & DRAKER_ID_FILE, "r", 0)
+  If file_handle = 0 Then Return FALSE
+
+  'if the file is not empty, parse the contents into the draker id array
+  If FileRead(file_handle, line_buffer, 64) > 0 Then
+    SplitStr(draker_id(), line_buffer, ",", ArrayLength(draker_id), 5)
+  EndIf
+
+  FileClose(file_handle)
+  Return TRUE
+EndFunction 'readDrakerID
+
+
+
+
+
+Function writeDrakerID()
+  Dim file_handle As Long
+  Dim new_das_name As String * 12
+  Dim line_buffer As String * 64
+  Dim counter As Long
+
+  'preserve the new das name before we potentially overwrite it
+  new_das_name = draker_das_name
+
+  'read in the current file, restore the new das name if successful
+  If readDrakerID() Then draker_das_name = new_das_name
+
+  'serialize the draker id parameters
+  line_buffer = ""
+  For counter = 1 To ArrayLength(draker_id)
+
+    'use a comma delimiter between parameters
+    If counter > 1 Then line_buffer &= ","
+
+    'filter out any commas in the next parameter and append it
+    draker_id(counter) = Replace(draker_id(counter), ",", "")
+    line_buffer &= draker_id(counter)
+  Next
+
+  'open the file and write out the serialized parameters
+  file_handle = FileOpen("CPU:" & DRAKER_ID_FILE, "w", 0)
+  FileWrite(file_handle, line_buffer, 0)
+  FileClose(file_handle)
+
+  'hide the file to protect it
+  FileManage("CPU:" & DRAKER_ID_FILE, 32)
+EndFunction 'writeDrakerID
+
+
+
+
+
+Function compatibleConfigFile(file_handle As Long) As Boolean
+  Dim line_buffer As String * 32
+
+  'loop through each line of the file until we find the config version
+  Do While TRUE
+
+    'read the next line, if we reach the end then the file has no version
+    If FileReadLine(file_handle, line_buffer, 32) = -1 Then
+      cfg_reload_error = "Config file has no version"
+      Return FALSE
+    EndIf
+
+    'change the line to lower case and remove tabs and spaces
+    line_buffer = LowerCase(line_buffer)
+    line_buffer = Replace(line_buffer, TB, "")
+    line_buffer = Replace(line_buffer, SP, "")
+
+    'check if this line has the version
+    If Left(line_buffer, 9) = "##version" Then
+
+      'isolate just the version and check it against the component version
+      If Mid(line_buffer, 10, 4) = Left(draker_base_ver, 4) Then Return TRUE
+
+      'otherwise the file is incompatible
+      cfg_reload_error = "Config file version does not match parser"
+      Return FALSE
+    EndIf
+  Loop
+EndFunction 'compatibleConfigFile
+
+
+
+
+
+Function getNextLine(file_handle As Long) As String * 128
+  Dim line_buffer As String * 128
+  Dim position As Long
+  Dim das_list As String * 64
+  Dim this_das As String
+
+  'normalize this das's name by stripping the hyphan and adding a colon to the end
+  this_das = Replace(LowerCase(draker_das_name), "-", "") & ":"
+
+  'loop through each line of the file until we find a valid device
+  Do While TRUE
+
+    'read the next line, if we reach the end then return
+    If FileReadLine(file_handle, line_buffer, 128) = -1 Then Return "EOF"
+
+    'change the line to lower case and remove tabs, spaces and line ending characters
+    line_buffer = LowerCase(line_buffer)
+    line_buffer = Replace(line_buffer, TB, "")
+    line_buffer = Replace(line_buffer, SP, "")
+    line_buffer = Replace(line_buffer, CR, "")
+    line_buffer = Replace(line_buffer, LF, "")
+
+    'find the position of the first comma in the line
+    position = InStr(1, line_buffer, ",", 2)
+
+    'if the line begins with das and contains a comma before the last character
+    If Left(line_buffer, 3) = "das" AND position > 0 AND position < Len(line_buffer) Then
+
+      'then isolate and normalize the das list using the form "das##:das##:"
+      das_list = Replace(Left(line_buffer, position - 1), "-", "") & ":"
+
+      'if this das is in the list then return the rest of the line
+      If InStr(1, das_list, this_das, 2) <> 0 Then Return line_buffer(1, 1, position + 1)
+    EndIf
+  Loop
+EndFunction 'getNextLine
+
+
+
+
+
+Function registerPort(port As String * 24) As Long
+  Dim params(2) As String
+  Dim tcp_addr As String
+  Dim tcp_port As Long
+  Dim comm_port As Long
+  Dim counter As Long
+
+  If port = "" Then
+    cfg_reload_error = "No port given"
+    Return -1
+  EndIf
+
+  tcp_addr = ""
+  tcp_port = 0
+  comm_port = 0
+
+  'check for tcp device
+  If InStr(1, port, ":", 2) > 0 Then
+
+    If NOT CFG_TCP_ENABLE Then
+      cfg_reload_error = "Tcp device was specified but is not enabled"
+      Return -1
+    EndIf
+
+    'clear params array
+    For counter = 1 To ArrayLength(params)
+      params(counter) = ""
+    Next
+
+    SplitStr(params(), port, ":", 2, 5)
+    tcp_addr = params(1)
+    tcp_port = params(2)
+
+    'validate the tcp address and port
+    If Len(tcp_addr) < 7 OR Len(tcp_addr) > 15 OR tcp_port = NAN Then
+      cfg_reload_error = "Invalid tcp address or port specified"
+      Return -1
+    EndIf
+
+  'otherwise check for comm port
+  Else
+    Select Case Left(port, 4)
+    Case "com1"
+      comm_port = COM1
+    Case "com2"
+      comm_port = COM2
+    Case "com3"
+      comm_port = COM3
+    Case "com4"
+      comm_port = COM4
+    Else
+      cfg_reload_error = "Invalid port specified"
+      Return -1
+    EndSelect
+  EndIf
+
+  'check if port is already registered and if so return port num
+  If cfg_port_total > 0 Then
+    For counter = 1 To cfg_port_total
+      If comm_port > 0 AND cfg_ports(counter) = comm_port Then
+        Return counter
+      EndIf
+
+      #If CFG_TCP_ENABLE
+        If tcp_addr <> "" AND cfg_tcp_addr(counter) = tcp_addr AND cfg_tcp_port(counter) = tcp_port Then
+          Return counter
+        EndIf
+      #EndIf
+    Next
+  EndIf
+
+  'check number of ports defined, exit if all port slots are used
+  If cfg_port_total = CFG_PORT_MAX Then
+    cfg_reload_error = "Ran out of slots in port array"
+    Return -1
+  EndIf
+
+  'register port and return port num
+  cfg_port_total += 1
+  cfg_ports(cfg_port_total) = comm_port
+  #If CFG_TCP_ENABLE
+    cfg_tcp_addr(cfg_port_total) = tcp_addr
+    cfg_tcp_port(cfg_port_total) = tcp_port
+  #EndIf
+
+  Return cfg_port_total
+EndFunction 'registerPort
+
+
+
+
+
+Sub parseConfig(file As String * 64)
+  Dim file_handle As Long
+  Dim line_buffer As String * 128
+  Dim params(5) As String * 32
+  Dim counter As Long
+
+  Dim device_prefix As String
+  Dim device_index As Long
+  Dim device_type As String * 32
+  Dim device_port As String * 24
+  Dim device_port_num As Long
+  Dim device_addr As Long
+  Dim include_device As Boolean
+
+  'clear device information and reset device total
+  If cfg_device_total > 0 Then
+    For counter = 1 To cfg_device_total
+      cfg_device_index(counter) = 0
+      cfg_device_type(counter) = ""
+      cfg_device_port_num(counter) = 0
+      cfg_device_addr(counter) = 0
+      cfg_device_result(counter) = 0
+    Next
+    cfg_device_total = 0
+  EndIf
+
+  'close tcp socket if open and reset port information
+  If cfg_port_total > 0 Then
+    For counter = 1 To cfg_port_total
+      #If CFG_TCP_ENABLE
+        If cfg_ports(counter) > 100 Then TCPClose(cfg_ports(counter))
+        cfg_tcp_addr(counter) = ""
+        cfg_tcp_port(counter) = 0
+      #EndIf
+      cfg_ports(counter) = 0
+      cfg_port_busy(counter) = FALSE
+    Next
+    cfg_port_total = 0
+  EndIf
+
+  'clear the error message
+  cfg_reload_error = ""
+
+  'panel status
+  pnl_cfg_charge_addr = -1
+
+  #If DRAKER_PN <> DL208
+    DIS_pnl_charge_sdi = TRUE
+  #EndIf
+
+  'electro shark 100
+  For counter = 1 To MTR_TOTAL
+    mtr_comm_code(counter) = 0
+    mtr_last_record(counter) = 0
+    mtr_last_day(counter) = 0
+
+    DIS_mtr_ac_voltage_an(counter) = TRUE
+    DIS_mtr_ac_voltage_bn(counter) = TRUE
+    DIS_mtr_ac_voltage_cn(counter) = TRUE
+    DIS_mtr_ac_voltage_ab(counter) = TRUE
+    DIS_mtr_ac_voltage_bc(counter) = TRUE
+    DIS_mtr_ac_voltage_ca(counter) = TRUE
+    DIS_mtr_ac_current_a(counter) = TRUE
+    DIS_mtr_ac_current_b(counter) = TRUE
+    DIS_mtr_ac_current_c(counter) = TRUE
+    DIS_mtr_ac_current_n(counter) = TRUE
+    DIS_mtr_ac_power(counter) = TRUE
+    DIS_mtr_ac_power_rcvd(counter) = TRUE
+    DIS_mtr_ac_power_delv(counter) = TRUE
+    DIS_mtr_ac_va(counter) = TRUE
+    DIS_mtr_ac_vars(counter) = TRUE
+    DIS_mtr_ac_pf(counter) = TRUE
+    DIS_mtr_ac_freq(counter) = TRUE
+  Next
+
+  'try to open config file
+  file_handle = FileOpen(file, "r", 0)
+  If file_handle = 0 Then
+    cfg_reload_error = "Config file missing"
+    ExitSub
+  EndIf
+
+  'check if config file version matches the parser version
+  If NOT compatibleConfigFile(file_handle) Then
+    FileClose(file_handle)
+    ExitSub
+  EndIf
+
+  'continue through the file, any devices before the version line will be ignored
+  Do While TRUE
+
+    'get the next device, check if we have reached the end of the file
+    line_buffer = getNextLine(file_handle)
+    If line_buffer = "EOF" Then ExitDo
+
+    'clear params array
+    For counter = 1 To ArrayLength(params)
+      params(counter) = ""
+    Next
+
+    'parse the device parameters
+    SplitStr(params(), line_buffer, ",", 5, 5)
+    device_prefix = params(1)
+    device_index = params(2)
+    device_type = params(3)
+    device_port = params(4)
+    device_addr = params(5)
+
+    'reset add device flag
+    include_device = FALSE
+
+    'call prefix specific config parser, use line_buffer as parameter
+    Select Case device_prefix
+    EndSelect
+
+    'call device specific config parser, use line_buffer as parameter
+    Select Case device_type
+    'panel status
+    Case "ch200"
+      If DRAKER_PN = DL208 Then
+        cfg_reload_error = "Panel does not support ch200 comms"
+
+      ElseIf device_addr = NAN OR device_addr < 0 Then
+        cfg_reload_error = "Invalid address for ch200"
+
+      Else
+        pnl_cfg_charge_addr = device_addr
+      EndIf
+
+    'electro shark 100
+    Case "shark_100"
+      include_device = TRUE
+
+    EndSelect
+
+    'check if an error occured
+    If cfg_reload_error <> "" Then ExitDo
+
+    'check if device should be added
+    If include_device Then
+
+      'check that the index is valid
+      If device_index = NAN OR device_index < 1 Then
+        cfg_reload_error = "Invalid index for " & device_type
+        ExitDo
+      EndIf
+
+      'check that the address is valid
+      If device_addr = NAN OR device_addr < 0 Then
+        cfg_reload_error = "Invalid address for " & device_type
+        ExitDo
+      EndIf
+
+      'check number of devices defined, exit if all device slots are used
+      If cfg_device_total = CFG_DEVICE_MAX Then
+        cfg_reload_error = "Ran out of slots in device array"
+        ExitDo
+      EndIf
+
+      'checks/adds port to list and returns an array reference or negative if error
+      device_port_num = registerPort(device_port)
+      If device_port_num < 0 Then ExitDo
+
+      'if all is good then add the device
+      cfg_device_total += 1
+      cfg_device_index(cfg_device_total) = device_index
+      cfg_device_type(cfg_device_total) = device_type
+      cfg_device_port_num(cfg_device_total) = device_port_num
+      cfg_device_addr(cfg_device_total) = device_addr
+    EndIf
+  Loop
+
+  'close the file before exiting
+  FileClose(file_handle)
+EndSub 'parseConfig
+
+
+
+
+
+Function callDevice(num As Long, do_not_wait As Boolean)
+  Dim port_num As Long
+  Dim result As Long
+
+  'if device num is out of bounds then exit
+  If num < 1 OR num > cfg_device_total Then
+    cfg_reload_error = "The device called is out of bounds"
+    ExitFunction
+  EndIf
+
+  'if the port is being used by another call then wait for it to be freed
+  port_num = cfg_device_port_num(num)
+  Do While cfg_port_busy(port_num)
+
+    If do_not_wait Then ExitFunction
+  Loop
+  cfg_port_busy(port_num) = TRUE
+
+  'call the device
+  Select Case cfg_device_type(num)
+  'electro shark 100
+  Case "shark_100"
+    result = getElectroShark100(cfg_device_index(num), cfg_ports(port_num), cfg_device_addr(num))
+
+  EndSelect
+
+  cfg_port_busy(port_num) = FALSE
+
+  'check if index was out of bounds
+  If result = -9999 Then cfg_reload_error = "The array index is out of bounds"
+
+  'capture the result code
+  If result = 0 Then
+    cfg_device_result(num) = 0
+  Else
+    cfg_device_result(num) += 1
+  EndIf
+EndFunction 'callDevice
+
+
+
+
+
+#If CFG_TCP_ENABLE
+Function validTcpSocket(num As Long) As Boolean
+  Dim counter As Long
+
+  'check the result for devices using this socket
+  For counter = 1 To cfg_device_total
+
+    'check if any device using this socket has a result under the threshold
+    If cfg_device_port_num(counter) = num AND cfg_device_result(counter) < CFG_TCP_FAIL_MAX Then
+      Return TRUE
+    EndIf
+  Next
+
+  Return FALSE
+EndFunction 'validTcpSocket
+#EndIf
+
+
+
+
+
+Sub clearDeviceResult(num As Long)
+  Dim counter As Long
+
+  'reset result for all devices using this port
+  For counter = 1 To cfg_device_total
+    If cfg_device_port_num(counter) = num Then cfg_device_result(counter) = 0
+  Next
+EndSub 'clearDeviceResult
+'################################################
+
+
+
+
+
+'## Shutdown ####################################
+ShutDownBegin
+
+  'base
+  #If CFG_TCP_ENABLE
+    If cfg_port_total > 0 Then
+      For cfg_counter = 1 To cfg_port_total
+        If cfg_ports(cfg_counter) > 100 Then TCPClose(cfg_ports(cfg_counter))
+      Next
+    EndIf
+  #EndIf
+
+ShutDownEnd
+'################################################
+
+
+
+
+
+'## Main Program ################################
+BeginProg
+
+  readDrakerID()
+
+  Scan(CFG_SCAN_INTERVAL_MAIN, SEC, 3, 0)
+    'Populate the time_utc array with the current timestamp
+    RealTime(time_utc())
+
+    'panel status
+    Battery(pnl_logger_voltage)
+    PanelTemp(pnl_logger_temp, FREQ_REJECTION)
+
+    'clear the table trigger
+    pnl_trigger_table = FALSE
+
+    'check for logger faults
+    getLoggerFault()
+
+    #If DRAKER_PN <> DL208
+      'only try to collect data from ch200 if address is valid
+      If pnl_cfg_charge_addr >= 0 Then
+        getCh200(pnl_cfg_charge_addr)
+      EndIf
+    #EndIf
+
+    CallTable(panelStatus)
+
+    CallTable(fifteenMin)
+  NextScan
+
+
+
+
+
+  'slow scan for devices with clean communications (comm code = 0)
+  SlowSequence
+  Do While TRUE
+    Timer(1, MSEC, 2)
+
+    If cfg_device_total > 0 Then
+      For cfg_counter_clean = 1 To cfg_device_total
+        If draker_das_name_save OR cfg_reload Then ExitFor
+
+        'only call devices that have clean communications
+        If cfg_device_result(cfg_counter_clean) = 0 Then
+
+          'report which device is being called
+          cfg_device_current_clean = cfg_device_type(cfg_counter_clean) & ":" & cfg_device_index(cfg_counter_clean)
+
+          'call the device, don't wait if port is busy
+          callDevice(cfg_counter_clean, TRUE)
+
+          cfg_device_current_clean = ""
+        EndIf
+      Next
+    EndIf
+
+    'capture the scan time (the timer function returns an integer, doing this conversion provides a decimal)
+    cfg_scan_timer_clean = Timer(1, MSEC, 4) * 0.001
+
+    'calculate the delay (the delay function requires an integer so scale the value to MSEC and store in long)
+    cfg_scan_delay_clean = (CFG_SCAN_INTERVAL_CLEAN - cfg_scan_timer_clean) * 1000
+
+    'only delay the scan if the calculated value is positive time
+    If cfg_scan_delay_clean > 0 Then Delay(1, cfg_scan_delay_clean, MSEC)
+  Loop
+  EndSequence
+
+
+
+
+
+  'slow scan for devices with dirty communications (comm code <> 0)
+  SlowSequence
+  Do While TRUE
+    Timer(2, MSEC, 2)
+
+    If cfg_device_total > 0 Then
+      For cfg_counter_dirty = 1 To cfg_device_total
+        If draker_das_name_save OR cfg_reload Then ExitFor
+
+        'only call devices that have dirty communications
+        If cfg_device_result(cfg_counter_dirty) <> 0 Then
+
+          'report which device is being called
+          cfg_device_current_dirty = cfg_device_type(cfg_counter_dirty) & ":" & cfg_device_index(cfg_counter_dirty)
+
+          'call the device, wait if port is busy
+          callDevice(cfg_counter_dirty, FALSE)
+
+          cfg_device_current_dirty = ""
+        EndIf
+      Next
+    EndIf
+
+    'capture the scan time (the timer function returns an integer, doing this conversion provides a decimal)
+    cfg_scan_timer_dirty = Timer(2, MSEC, 4) * 0.001
+
+    'calculate the delay (the delay function requires an integer so scale the value to MSEC and store in long)
+    cfg_scan_delay_dirty = (CFG_SCAN_INTERVAL_DIRTY - cfg_scan_timer_dirty) * 1000
+
+    'only delay the scan if the calculated value is positive time
+    If cfg_scan_delay_dirty > 0 Then Delay(1, cfg_scan_delay_dirty, MSEC)
+  Loop
+  EndSequence
+
+
+
+
+
+  'slow scan for checking user input flags and maintaining tcp sockets if enabled
+  SlowSequence
+  Do While TRUE
+    Timer(3, MSEC, 2)
+
+    'check if the draker id file should be updated
+    If draker_das_name_save Then
+      writeDrakerID()
+      draker_das_name_save = FALSE
+
+      'set flag to reparse the config file
+      cfg_reload = TRUE
+    EndIf
+
+    'check if the draker id file should be backed up
+    If draker_id_backup Then
+      FileCopy("CPU:" & DRAKER_ID_FILE, "CPU:backup" & DRAKER_ID_FILE)
+      draker_id_backup = FALSE
+    EndIf
+
+    'check if config file needs to be reloaded
+    If cfg_reload Then
+      Call parseConfig("CPU:" & CFG_FILE)
+      cfg_reload = FALSE
+    EndIf
+
+    #If CFG_TCP_ENABLE
+      If cfg_port_total > 0 Then
+        For cfg_tcp_open = 1 To cfg_port_total
+
+          'break out of the loop if either flag is set
+          If draker_das_name_save OR cfg_reload Then ExitFor
+
+          'check if user has set tcp socket override to none zero
+          If cfg_tcp_open_override > 0 AND cfg_tcp_open_override <= cfg_port_total Then
+
+            'if so then overwrite current tcp open
+            cfg_tcp_open = cfg_tcp_open_override
+            cfg_tcp_open_override = 0
+
+            'if socket is currently open then close it
+            If cfg_ports(cfg_tcp_open) > 100 Then
+              TCPClose(cfg_ports(cfg_tcp_open))
+              cfg_ports(cfg_tcp_open) = 0
+            EndIf
+
+          'otherwise if socket is currently open
+          ElseIf cfg_ports(cfg_tcp_open) > 100 Then
+
+            'close the socket if all devices have stopped communicating
+            If NOT validTcpSocket(cfg_tcp_open) Then
+              TCPClose(cfg_ports(cfg_tcp_open))
+              cfg_ports(cfg_tcp_open) = 0
+            EndIf
+          EndIf
+
+          'only try to open sockets that aren't already open
+          If cfg_ports(cfg_tcp_open) = 0 Then
+
+            'must use a different tcpOpen command for each unique socket
+            Select Case cfg_tcp_open
+            Case 1
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 2
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 3
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 4
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 5
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 6
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 7
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 8
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 9
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            Case 10
+              cfg_ports(cfg_tcp_open) = TCPOpen(cfg_tcp_addr(cfg_tcp_open), cfg_tcp_port(cfg_tcp_open), 1)
+            EndSelect
+
+            'reset the result when a new socket is opened
+            If cfg_ports(cfg_tcp_open) > 100 Then Call clearDeviceResult(cfg_tcp_open)
+          EndIf
+        Next
+      EndIf
+    #EndIf
+
+    'capture the scan time (the timer function returns an integer, doing this conversion provides a decimal)
+    cfg_scan_timer_util = Timer(3, MSEC, 4) * 0.001
+
+    'calculate the delay (the delay function requires an integer so scale the value to MSEC and store in long)
+    cfg_scan_delay_util = (CFG_SCAN_INTERVAL_UTIL - cfg_scan_timer_util) * 1000
+
+    'only delay the scan if the calculated value is positive time
+    If cfg_scan_delay_util > 0 Then Delay(1, cfg_scan_delay_util, MSEC)
+  Loop
+  EndSequence
+
+EndProg
+'################################################
+
+
+'Built using Daft version 0.5.0
+'Component library was on branch master
+'At commit hash 04e7122e2255265c5c2ebf682f645a4c8c63ed4e

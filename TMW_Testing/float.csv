@@ -1,0 +1,5 @@
+Device Name: Shark 100, Byte Order: Little Endian
+Time,Volts A,Volts B,Volts C
+,FLOAT,FLOAT,FLOAT
+,1000,1002,1004
+0,120,120,120
