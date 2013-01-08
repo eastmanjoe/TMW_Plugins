@@ -87,12 +87,12 @@ namespace ModbusSimulatorSlave
     #region ITHUserPlugin Members
 
     private ITHUserPluginHost _Host = null;
-    private string _Author = "Triangle MicroWorks Inc.";
+    private string _Author = "Joe Eastman";
     private string _Description = 
       "\n" +
       "Simulates a Modbus Slave Device\n"
     ;
-    private string _Version = "1.0.0";
+    private string _Version = "2.01.0";
 
     public String PluginName 
     {

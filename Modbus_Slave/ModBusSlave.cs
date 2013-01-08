@@ -26,6 +26,8 @@ namespace ModbusSimulatorSlave
       this.cfg_mb_per_port.Value = 1;
       this.cfg_start_mb_addr.Value = 1;
       this.cfg_tcp_port.Value = 502;
+      
+      cfg_row_increment_interval.Value = 5000;
     }
     
 
@@ -335,8 +337,52 @@ namespace ModbusSimulatorSlave
       
     }
     
+    private void AutoDataLoop(object sender, System.EventArgs e)
+    {
+      if (this.dataLoopStart.Checked) 
+      {
+        data_refresh_timer.Interval = Convert.ToUInt16(cfg_row_increment_interval.Value);        
+        data_refresh_timer.Start();
+        
+        button_fill_mb_map.Enabled = false;
+      }
+      else
+      {
+        data_refresh_timer.Enabled = false;
+        
+        button_fill_mb_map.Enabled = true;
+      }
+    }
     
-    
+    // This is the method to run when the timer is raised. 
+    private void dataRefreshTick(object sender, System.EventArgs e)
+    {
+      data_refresh_timer.Stop();
+      
+      if (open_mb_session.Checked) 
+      {
+        DataTable MbDataTable = new DataTable();
+      
+        text_current_row.Text = Convert.ToString(Convert.ToInt32(text_current_row.Text) + 1);
+        current_csv_row += 1;
+        
+        if (current_csv_row == Convert.ToInt32(CsvDataTable.Rows.Count.ToString()))
+        {
+          text_current_row.Text = "1";
+          current_csv_row = 2;
+        }
+        
+        for (uint i = 0; i < cfg_mb_per_port.Value; i++)
+        {
+          MbDataTable = PopulateModbusMap(current_csv_row, CsvDataTable, byte_order);          
+        }
+
+        dataGrid_mb_registers.DataSource = MbDataTable.DefaultView;
+      }
+      
+      // Restarts the timer.
+      data_refresh_timer.Enabled = true;
+    }
     
     private void SimulatorFormClosing(object sender, FormClosingEventArgs e)
     {

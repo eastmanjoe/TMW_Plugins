@@ -53,9 +53,13 @@ namespace ModbusSimulatorSlave
       this.text_byte_order = new System.Windows.Forms.TextBox();
       this.label_device_name = new System.Windows.Forms.Label();
       this.text_device_name = new System.Windows.Forms.TextBox();
-      this.checkBox3 = new System.Windows.Forms.CheckBox();
+      this.dataLoopStart = new System.Windows.Forms.CheckBox();
+      this.label_row_increment_time = new System.Windows.Forms.Label();
+      this.cfg_row_increment_interval = new System.Windows.Forms.NumericUpDown();
+      this.label_row_increment = new System.Windows.Forms.Label();
       this.text_current_row = new System.Windows.Forms.TextBox();
       this.label_current_row = new System.Windows.Forms.Label();
+      this.label_version = new System.Windows.Forms.Label();
       this.gb_data_file.SuspendLayout();
       this.gb_mb_outputs.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)(this.dataGrid_mb_registers)).BeginInit();
@@ -66,6 +70,7 @@ namespace ModbusSimulatorSlave
       ((System.ComponentModel.ISupportInitialize)(this.cfg_start_mb_addr)).BeginInit();
       ((System.ComponentModel.ISupportInitialize)(this.cfg_tcp_port)).BeginInit();
       this.gb_mb_data.SuspendLayout();
+      ((System.ComponentModel.ISupportInitialize)(this.cfg_row_increment_interval)).BeginInit();
       this.SuspendLayout();
       // 
       // gb_data_file
@@ -90,6 +95,7 @@ namespace ModbusSimulatorSlave
       // data_file_import
       // 
       this.data_file_import.BackColor = System.Drawing.SystemColors.ControlDark;
+      this.data_file_import.Cursor = System.Windows.Forms.Cursors.Hand;
       this.data_file_import.FlatAppearance.BorderColor = System.Drawing.Color.Green;
       this.data_file_import.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Red;
       this.data_file_import.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
@@ -105,15 +111,16 @@ namespace ModbusSimulatorSlave
       // button_fill_mb_map
       // 
       this.button_fill_mb_map.BackColor = System.Drawing.Color.Orange;
+      this.button_fill_mb_map.Cursor = System.Windows.Forms.Cursors.Hand;
       this.button_fill_mb_map.FlatAppearance.BorderColor = System.Drawing.Color.Green;
       this.button_fill_mb_map.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Red;
       this.button_fill_mb_map.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
       this.button_fill_mb_map.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      this.button_fill_mb_map.Location = new System.Drawing.Point(160, 24);
+      this.button_fill_mb_map.Location = new System.Drawing.Point(536, 24);
       this.button_fill_mb_map.Name = "button_fill_mb_map";
-      this.button_fill_mb_map.Size = new System.Drawing.Size(144, 24);
+      this.button_fill_mb_map.Size = new System.Drawing.Size(200, 24);
       this.button_fill_mb_map.TabIndex = 16;
-      this.button_fill_mb_map.Text = "Increment Data Row";
+      this.button_fill_mb_map.Text = "Manually Increment Data Row";
       this.button_fill_mb_map.UseVisualStyleBackColor = false;
       this.button_fill_mb_map.Click += new System.EventHandler(this.FillModbusMapWithData);
       // 
@@ -135,6 +142,10 @@ namespace ModbusSimulatorSlave
       this.dataGrid_mb_registers.Name = "dataGrid_mb_registers";
       this.dataGrid_mb_registers.Size = new System.Drawing.Size(906, 189);
       this.dataGrid_mb_registers.TabIndex = 0;
+      // 
+      // data_refresh_timer
+      // 
+      this.data_refresh_timer.Tick += new System.EventHandler(this.dataRefreshTick);
       // 
       // gb_data_imported
       // 
@@ -166,7 +177,7 @@ namespace ModbusSimulatorSlave
       this.gb_mb_session.Controls.Add(this.cfg_tcp_port);
       this.gb_mb_session.Location = new System.Drawing.Point(8, 64);
       this.gb_mb_session.Name = "gb_mb_session";
-      this.gb_mb_session.Size = new System.Drawing.Size(744, 168);
+      this.gb_mb_session.Size = new System.Drawing.Size(744, 112);
       this.gb_mb_session.TabIndex = 14;
       this.gb_mb_session.TabStop = false;
       this.gb_mb_session.Text = "ModBus Session";
@@ -175,6 +186,7 @@ namespace ModbusSimulatorSlave
       // 
       this.open_mb_session.Appearance = System.Windows.Forms.Appearance.Button;
       this.open_mb_session.BackColor = System.Drawing.Color.Lime;
+      this.open_mb_session.Cursor = System.Windows.Forms.Cursors.Hand;
       this.open_mb_session.FlatAppearance.BorderColor = System.Drawing.Color.Black;
       this.open_mb_session.FlatAppearance.CheckedBackColor = System.Drawing.Color.Red;
       this.open_mb_session.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -249,20 +261,23 @@ namespace ModbusSimulatorSlave
       this.gb_mb_data.Controls.Add(this.text_byte_order);
       this.gb_mb_data.Controls.Add(this.label_device_name);
       this.gb_mb_data.Controls.Add(this.text_device_name);
-      this.gb_mb_data.Controls.Add(this.checkBox3);
+      this.gb_mb_data.Controls.Add(this.dataLoopStart);
+      this.gb_mb_data.Controls.Add(this.label_row_increment_time);
+      this.gb_mb_data.Controls.Add(this.cfg_row_increment_interval);
+      this.gb_mb_data.Controls.Add(this.label_row_increment);
       this.gb_mb_data.Controls.Add(this.text_current_row);
       this.gb_mb_data.Controls.Add(this.label_current_row);
       this.gb_mb_data.Controls.Add(this.button_fill_mb_map);
-      this.gb_mb_data.Location = new System.Drawing.Point(8, 240);
+      this.gb_mb_data.Location = new System.Drawing.Point(8, 184);
       this.gb_mb_data.Name = "gb_mb_data";
-      this.gb_mb_data.Size = new System.Drawing.Size(744, 96);
+      this.gb_mb_data.Size = new System.Drawing.Size(744, 152);
       this.gb_mb_data.TabIndex = 37;
       this.gb_mb_data.TabStop = false;
       this.gb_mb_data.Text = "ModBus Data";
       // 
       // label_byte_order
       // 
-      this.label_byte_order.Location = new System.Drawing.Point(456, 64);
+      this.label_byte_order.Location = new System.Drawing.Point(424, 120);
       this.label_byte_order.Name = "label_byte_order";
       this.label_byte_order.Size = new System.Drawing.Size(136, 23);
       this.label_byte_order.TabIndex = 39;
@@ -272,7 +287,7 @@ namespace ModbusSimulatorSlave
       // text_byte_order
       // 
       this.text_byte_order.BackColor = System.Drawing.SystemColors.Info;
-      this.text_byte_order.Location = new System.Drawing.Point(600, 64);
+      this.text_byte_order.Location = new System.Drawing.Point(568, 120);
       this.text_byte_order.Name = "text_byte_order";
       this.text_byte_order.Size = new System.Drawing.Size(136, 20);
       this.text_byte_order.TabIndex = 38;
@@ -280,7 +295,7 @@ namespace ModbusSimulatorSlave
       // 
       // label_device_name
       // 
-      this.label_device_name.Location = new System.Drawing.Point(48, 64);
+      this.label_device_name.Location = new System.Drawing.Point(16, 120);
       this.label_device_name.Name = "label_device_name";
       this.label_device_name.Size = new System.Drawing.Size(144, 23);
       this.label_device_name.TabIndex = 37;
@@ -290,31 +305,64 @@ namespace ModbusSimulatorSlave
       // text_device_name
       // 
       this.text_device_name.BackColor = System.Drawing.SystemColors.Info;
-      this.text_device_name.Location = new System.Drawing.Point(192, 64);
+      this.text_device_name.Location = new System.Drawing.Point(160, 120);
       this.text_device_name.Name = "text_device_name";
       this.text_device_name.Size = new System.Drawing.Size(256, 20);
       this.text_device_name.TabIndex = 36;
       this.text_device_name.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
       // 
-      // checkBox3
+      // dataLoopStart
       // 
-      this.checkBox3.Appearance = System.Windows.Forms.Appearance.Button;
-      this.checkBox3.BackColor = System.Drawing.Color.Lime;
-      this.checkBox3.FlatAppearance.BorderColor = System.Drawing.Color.Black;
-      this.checkBox3.FlatAppearance.CheckedBackColor = System.Drawing.Color.Red;
-      this.checkBox3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      this.checkBox3.Location = new System.Drawing.Point(8, 24);
-      this.checkBox3.Name = "checkBox3";
-      this.checkBox3.Size = new System.Drawing.Size(144, 24);
-      this.checkBox3.TabIndex = 36;
-      this.checkBox3.Text = "Start Data Loop";
-      this.checkBox3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-      this.checkBox3.UseVisualStyleBackColor = false;
+      this.dataLoopStart.Appearance = System.Windows.Forms.Appearance.Button;
+      this.dataLoopStart.BackColor = System.Drawing.Color.Lime;
+      this.dataLoopStart.Cursor = System.Windows.Forms.Cursors.Hand;
+      this.dataLoopStart.FlatAppearance.BorderColor = System.Drawing.Color.Red;
+      this.dataLoopStart.FlatAppearance.CheckedBackColor = System.Drawing.Color.Red;
+      this.dataLoopStart.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.dataLoopStart.Location = new System.Drawing.Point(8, 24);
+      this.dataLoopStart.Name = "dataLoopStart";
+      this.dataLoopStart.Size = new System.Drawing.Size(200, 24);
+      this.dataLoopStart.TabIndex = 36;
+      this.dataLoopStart.Text = "Automatically Increment Data Row";
+      this.dataLoopStart.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+      this.dataLoopStart.UseVisualStyleBackColor = false;
+      this.dataLoopStart.CheckedChanged += new System.EventHandler(this.AutoDataLoop);
+      // 
+      // label_row_increment_time
+      // 
+      this.label_row_increment_time.Location = new System.Drawing.Point(248, 56);
+      this.label_row_increment_time.Name = "label_row_increment_time";
+      this.label_row_increment_time.Size = new System.Drawing.Size(40, 24);
+      this.label_row_increment_time.TabIndex = 18;
+      this.label_row_increment_time.Text = "ms";
+      this.label_row_increment_time.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+      // 
+      // cfg_row_increment_interval
+      // 
+      this.cfg_row_increment_interval.Location = new System.Drawing.Point(152, 56);
+      this.cfg_row_increment_interval.Maximum = new decimal(new int[] {
+                  120000,
+                  0,
+                  0,
+                  0});
+      this.cfg_row_increment_interval.Name = "cfg_row_increment_interval";
+      this.cfg_row_increment_interval.Size = new System.Drawing.Size(96, 20);
+      this.cfg_row_increment_interval.TabIndex = 21;
+      this.cfg_row_increment_interval.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+      // 
+      // label_row_increment
+      // 
+      this.label_row_increment.Location = new System.Drawing.Point(8, 56);
+      this.label_row_increment.Name = "label_row_increment";
+      this.label_row_increment.Size = new System.Drawing.Size(144, 23);
+      this.label_row_increment.TabIndex = 18;
+      this.label_row_increment.Text = "Row Increment Interval";
+      this.label_row_increment.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
       // 
       // text_current_row
       // 
       this.text_current_row.BackColor = System.Drawing.SystemColors.Info;
-      this.text_current_row.Location = new System.Drawing.Point(672, 24);
+      this.text_current_row.Location = new System.Drawing.Point(416, 88);
       this.text_current_row.Name = "text_current_row";
       this.text_current_row.Size = new System.Drawing.Size(56, 20);
       this.text_current_row.TabIndex = 17;
@@ -322,12 +370,21 @@ namespace ModbusSimulatorSlave
       // 
       // label_current_row
       // 
-      this.label_current_row.Location = new System.Drawing.Point(520, 24);
+      this.label_current_row.Location = new System.Drawing.Point(264, 88);
       this.label_current_row.Name = "label_current_row";
       this.label_current_row.Size = new System.Drawing.Size(144, 23);
       this.label_current_row.TabIndex = 18;
       this.label_current_row.Text = "Current Imported Data Row";
       this.label_current_row.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+      // 
+      // label_version
+      // 
+      this.label_version.Location = new System.Drawing.Point(792, 8);
+      this.label_version.Name = "label_version";
+      this.label_version.Size = new System.Drawing.Size(136, 23);
+      this.label_version.TabIndex = 39;
+      this.label_version.Text = "Version: 2.01.02";
+      this.label_version.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
       // FormMBSimSlave
       // 
@@ -336,6 +393,7 @@ namespace ModbusSimulatorSlave
       this.BackColor = System.Drawing.SystemColors.Control;
       this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
       this.ClientSize = new System.Drawing.Size(929, 793);
+      this.Controls.Add(this.label_version);
       this.Controls.Add(this.gb_mb_data);
       this.Controls.Add(this.gb_mb_session);
       this.Controls.Add(this.gb_data_imported);
@@ -361,13 +419,18 @@ namespace ModbusSimulatorSlave
       ((System.ComponentModel.ISupportInitialize)(this.cfg_tcp_port)).EndInit();
       this.gb_mb_data.ResumeLayout(false);
       this.gb_mb_data.PerformLayout();
+      ((System.ComponentModel.ISupportInitialize)(this.cfg_row_increment_interval)).EndInit();
       this.ResumeLayout(false);
     }
+    private System.Windows.Forms.Label label_version;
+    private System.Windows.Forms.NumericUpDown cfg_row_increment_interval;
+    private System.Windows.Forms.Label label_row_increment_time;
+    private System.Windows.Forms.Label label_row_increment;
     private System.Windows.Forms.TextBox text_device_name;
     private System.Windows.Forms.Label label_device_name;
     private System.Windows.Forms.TextBox text_byte_order;
     private System.Windows.Forms.Label label_byte_order;
-    private System.Windows.Forms.CheckBox checkBox3;
+    private System.Windows.Forms.CheckBox dataLoopStart;
     private System.Windows.Forms.GroupBox gb_mb_data;
     private System.Windows.Forms.NumericUpDown cfg_tcp_port;
     private System.Windows.Forms.Label label1;
